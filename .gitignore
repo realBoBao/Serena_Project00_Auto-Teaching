@@ -2,7 +2,7 @@
 # DEPENDENCIES
 # ═══════════════════════════════════════════════════════════
 node_modules/
-package-lock.json
+# package-lock.json is committed for reproducible builds in CI/CD
 
 # ═══════════════════════════════════════════════════════════
 # SECURITY — Never commit secrets
