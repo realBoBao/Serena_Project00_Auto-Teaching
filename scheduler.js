@@ -19,12 +19,12 @@ async function runMemoryConsolidation() {
   console.log('[scheduler] Starting memory consolidation at', new Date().toISOString());
 
   try {
-    const { archiveOldMemories, getRecentMemories } = await import('./lib/memory_manager.js');
+    const { archiveOldMemories, getRecentMemory } = await import('./lib/memory_manager.js');
     const { embedText } = await import('./lib/embeddings.js');
     const { upsertAcademic, upsertSystem, upsertDaily } = await import('./lib/vector_collections.js');
 
     // Lấy memories từ 7 ngày qua
-    const recentMemories = await getRecentMemories(7);
+    const recentMemories = await getRecentMemory(7);
     if (!recentMemories || recentMemories.length === 0) {
       console.log('[scheduler] No recent memories to consolidate');
       return;
@@ -68,11 +68,17 @@ async function runMemoryConsolidation() {
       console.log(`[scheduler] Consolidated ${items.length} items to ${collectionName}`);
     };
 
-    await Promise.all([
+    // Process each collection independently — one failure doesn't block others
+    const results = await Promise.allSettled([
       processItems(academicItems, upsertAcademic, 'academic-docs'),
       processItems(systemItems, upsertSystem, 'system-logs'),
       processItems(dailyItems, upsertDaily, 'daily-memory'),
     ]);
+    for (const r of results) {
+      if (r.status === 'rejected') {
+        console.error('[scheduler] Collection processing error:', r.reason?.message || r.reason);
+      }
+    }
 
     // Archive memories cũ
     await archiveOldMemories(30);
