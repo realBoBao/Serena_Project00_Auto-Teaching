@@ -22,6 +22,10 @@ import { HumanMessage } from '@langchain/core/messages';
 import { invokeLlm } from './RagAgent.js';
 import { withTimeout, TimeoutError } from '../lib/with_timeout.js';
 import { getLogger } from '../lib/logger.js';
+import fs from 'fs/promises';
+import path from 'path';
+import os from 'os';
+import { spawn } from 'child_process';
 
 const logger = getLogger('ManimAgent');
 
@@ -195,11 +199,6 @@ export async function renderManimVideo(code, sceneName = null, persistDir = null
     sceneName = match ? match[1] : 'Scene';
   }
 
-  const fs = await import('fs/promises');
-  const path = await import('path');
-  const os = await import('os');
-  const { spawn } = await import('child_process');
-
   // Render directly into persistDir (e.g. public/videos/) to avoid copy race condition
   const workDir = persistDir || path.join(os.tmpdir(), `manim-${Date.now()}`);
   await fs.mkdir(workDir, { recursive: true });
@@ -317,9 +316,6 @@ export async function renderManimVideo(code, sceneName = null, persistDir = null
  * @returns {Promise<{success: boolean, videoPath: string, sizeMB: number, error?: string}>}
  */
 export async function compressVideo(inputPath, targetMB = TARGET_MB) {
-  const fs = await import('fs/promises');
-  const path = await import('path');
-  const { spawn } = await import('child_process');
 
   try {
     const stats = await fs.stat(inputPath);
@@ -403,8 +399,6 @@ export async function compressVideo(inputPath, targetMB = TARGET_MB) {
  * @returns {Promise<{staticPath: string, publicUrl: string, sizeMB: number}>}
  */
 export async function copyToStaticPath(videoPath, jobId) {
-  const fs = await import('fs/promises');
-  const path = await import('path');
 
   // Verify source file exists
   try {
@@ -567,12 +561,10 @@ async function _pipelineWithRetry(description, jobId, compress, uploadToCdn, max
   debugInfo.originalCode = code;
 
   // Prepare persistent output directory for this job
-  const fsMod = await import('fs/promises');
-  const pathMod = await import('path');
-  const publicVideosDir = pathMod.resolve('./public/videos');
-  await fsMod.mkdir(publicVideosDir, { recursive: true });
-  const jobOutputDir = pathMod.join(publicVideosDir, jobId);
-  await fsMod.mkdir(jobOutputDir, { recursive: true });
+  const publicVideosDir = path.resolve('./public/videos');
+  await fs.mkdir(publicVideosDir, { recursive: true });
+  const jobOutputDir = path.join(publicVideosDir, jobId);
+  await fs.mkdir(jobOutputDir, { recursive: true });
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     debugInfo.attempts = attempt + 1;
@@ -618,7 +610,6 @@ async function _pipelineWithRetry(description, jobId, compress, uploadToCdn, max
 
     // ❌ Render thất bại
     if (renderResult.tmpDir) {
-      const fs = await import('fs/promises');
       try { await fs.rm(renderResult.tmpDir, { recursive: true, force: true }); } catch (_) {}
     }
 
