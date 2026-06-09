@@ -1,60 +1,70 @@
 /**
- * ManimAgent Tests — Pipeline Logic & Exports
+ * ManimAgent Tests — Exports & Basic Logic
+ *
+ * CRITICAL: jest.mock MUST be at top level, before any imports.
+ * This prevents ManimAgent.js from spawning child processes on load.
  */
 import { describe, test, expect, jest } from '@jest/globals';
 
-// Mock the entire ManimAgent module to prevent real execution & async leaks
-jest.mock('../agents/ManimAgent.js', () => ({
-  createAnimationForPlanner: jest.fn().mockResolvedValue({ success: false, error: 'mocked' }),
-  createAnimation: jest.fn().mockResolvedValue({ success: false, error: 'mocked' }),
-  createAnimationWithCompression: jest.fn().mockResolvedValue({ success: false, error: 'mocked' }),
-  createAnimationAsync: jest.fn().mockReturnValue({ jobId: 'anim:123:abc', promise: Promise.resolve() }),
-  generateManimCode: jest.fn().mockResolvedValue('mock code'),
-  renderManimVideo: jest.fn().mockResolvedValue({ success: true, videoPath: '/tmp/test.mp4' }),
-  compressVideo: jest.fn().mockResolvedValue({ success: true, videoPath: '/tmp/test.mp4', sizeMB: 1 }),
-  _pipelineWithRetry: jest.fn().mockResolvedValue({ success: false, error: 'mocked' }),
-}));
+// Mock BEFORE importing — this replaces the entire module
+jest.mock('../agents/ManimAgent.js', () => {
+  const mockPromise = Promise.resolve({ success: false, error: 'mocked' });
+  return {
+    __esModule: true,
+    createAnimationForPlanner: jest.fn().mockResolvedValue({ success: false, error: 'mocked' }),
+    createAnimation: jest.fn().mockResolvedValue({ success: false, error: 'mocked' }),
+    createAnimationWithCompression: jest.fn().mockResolvedValue({ success: false, error: 'mocked' }),
+    createAnimationAsync: jest.fn().mockReturnValue({ jobId: 'anim:1234567890:abc12345', promise: mockPromise }),
+    generateManimCode: jest.fn().mockResolvedValue('class Scene(Scene): pass'),
+    renderManimVideo: jest.fn().mockResolvedValue({ success: true, videoPath: '/tmp/test.mp4' }),
+    compressVideo: jest.fn().mockResolvedValue({ success: true, videoPath: '/tmp/test.mp4', sizeMB: 1 }),
+    _pipelineWithRetry: jest.fn().mockResolvedValue({ success: false, error: 'mocked' }),
+  };
+});
+
+// NOW import the mocked module
+const {
+  createAnimationForPlanner,
+  createAnimation,
+  createAnimationWithCompression,
+  createAnimationAsync,
+  generateManimCode,
+  renderManimVideo,
+  compressVideo,
+} = await import('../agents/ManimAgent.js');
 
 describe('ManimAgent — Exports', () => {
-  test('exports createAnimationForPlanner', async () => {
-    const mod = await import('../agents/ManimAgent.js');
-    expect(typeof mod.createAnimationForPlanner).toBe('function');
+  test('exports createAnimationForPlanner', () => {
+    expect(typeof createAnimationForPlanner).toBe('function');
   });
 
-  test('exports createAnimation (backward compat)', async () => {
-    const mod = await import('../agents/ManimAgent.js');
-    expect(typeof mod.createAnimation).toBe('function');
+  test('exports createAnimation (backward compat)', () => {
+    expect(typeof createAnimation).toBe('function');
   });
 
-  test('exports createAnimationWithCompression (backward compat)', async () => {
-    const mod = await import('../agents/ManimAgent.js');
-    expect(typeof mod.createAnimationWithCompression).toBe('function');
+  test('exports createAnimationWithCompression (backward compat)', () => {
+    expect(typeof createAnimationWithCompression).toBe('function');
   });
 
-  test('exports createAnimationAsync', async () => {
-    const mod = await import('../agents/ManimAgent.js');
-    expect(typeof mod.createAnimationAsync).toBe('function');
+  test('exports createAnimationAsync', () => {
+    expect(typeof createAnimationAsync).toBe('function');
   });
 
-  test('exports generateManimCode', async () => {
-    const mod = await import('../agents/ManimAgent.js');
-    expect(typeof mod.generateManimCode).toBe('function');
+  test('exports generateManimCode', () => {
+    expect(typeof generateManimCode).toBe('function');
   });
 
-  test('exports renderManimVideo', async () => {
-    const mod = await import('../agents/ManimAgent.js');
-    expect(typeof mod.renderManimVideo).toBe('function');
+  test('exports renderManimVideo', () => {
+    expect(typeof renderManimVideo).toBe('function');
   });
 
-  test('exports compressVideo', async () => {
-    const mod = await import('../agents/ManimAgent.js');
-    expect(typeof mod.compressVideo).toBe('function');
+  test('exports compressVideo', () => {
+    expect(typeof compressVideo).toBe('function');
   });
 });
 
 describe('ManimAgent — createAnimationAsync', () => {
-  test('returns jobId and promise', async () => {
-    const { createAnimationAsync } = await import('../agents/ManimAgent.js');
+  test('returns jobId and promise', () => {
     const { jobId, promise } = createAnimationAsync('test animation');
     expect(jobId).toMatch(/^anim:\d+:[a-z0-9]+$/);
     expect(promise).toBeInstanceOf(Promise);
@@ -63,13 +73,12 @@ describe('ManimAgent — createAnimationAsync', () => {
 
 describe('ManimAgent — createAnimationForPlanner options', () => {
   test('accepts options parameter', async () => {
-    const { createAnimationForPlanner } = await import('../agents/ManimAgent.js');
-    // Mock already returns a resolved promise — no async leak
     const result = await createAnimationForPlanner('test', {
       compress: false,
       uploadToCdn: false,
       maxRetries: 0,
     });
     expect(result).toBeDefined();
+    expect(result.success).toBe(false); // mocked
   });
 });
