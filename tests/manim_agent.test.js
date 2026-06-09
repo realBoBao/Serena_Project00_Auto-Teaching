@@ -53,10 +53,15 @@ describe('ManimAgent — createAnimationForPlanner options', () => {
   test('accepts options parameter', async () => {
     const { createAnimationForPlanner } = await import('../agents/ManimAgent.js');
     // Just verify it accepts options without throwing
-    expect(() => createAnimationForPlanner('test', {
+    // Note: we don't await the result because it would try to actually render
+    // which requires manim/python. We just verify the function accepts the args.
+    const promise = createAnimationForPlanner('test', {
       compress: false,
       uploadToCdn: false,
       maxRetries: 0,
-    })).not.toThrow();
+    });
+    expect(promise).toBeInstanceOf(Promise);
+    // Clean up: reject the promise to prevent async leak
+    promise.catch(() => {}); // swallow — we don't care about the result
   });
 });
