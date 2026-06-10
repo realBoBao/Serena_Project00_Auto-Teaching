@@ -1,0 +1,39 @@
+# ═══════════════════════════════════════════════════════════════
+# CI/CD Pipeline — Auto Deploy to GCP VPS
+# Trigger: push to main branch
+# ═══════════════════════════════════════════════════════════════
+
+name: Deploy to GCP
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to GCP via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.GCP_HOST }}
+          username: ${{ secrets.GCP_USER }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          script: |
+            cd ~/my-ai-brain
+            git pull origin main
+            npm ci --only-production
+            pm2 restart AI_Brain --update-env
+            pm2 save
+            echo "✅ Deployment complete at $(date)"
+
+      - name: Notify Discord
+        if: success()
+        run: |
+          curl -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d '{"embeds":[{"title":"✅ Deployment Complete","description":"Code pushed to main and deployed to GCP","color":0x00ff00,"timestamp":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}]}'
