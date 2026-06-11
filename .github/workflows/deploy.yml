@@ -17,53 +17,42 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH Key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.GCP_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.GCP_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-          echo "SSH key setup complete"
-          ls -la ~/.ssh/
-
       - name: Deploy to VPS via SSH
-        run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-            ${{ secrets.GCP_USERNAME }}@${{ secrets.GCP_HOST }} \
-            'bash -s' << 'DEPLOY_SCRIPT'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.GCP_HOST }}
+          username: ${{ secrets.GCP_USERNAME }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          script: |
             set -e
             echo "=== Starting deployment at $(date) ==="
             
-            # Navigate to project
-            cd ~/my-ai-brain || cd /home/${USER}/my-ai-brain || { echo "❌ Project dir not found"; exit 1; }
+            # Đã sửa lại đúng tên thư mục gốc trên máy chủ của bạn
+            cd ~/ai-brain || { echo "❌ Project dir not found"; exit 1; }
             echo "📁 Working dir: $(pwd)"
             
-            # Pull latest code
             echo "📥 Pulling latest code..."
             git pull origin main
             
-            # Install dependencies
             echo "📦 Installing dependencies..."
             npm ci --only-production 2>&1 | tail -5
             
-            # Restart PM2
             echo "🔄 Restarting PM2..."
             pm2 restart AI_Brain --update-env 2>&1 || pm2 start ecosystem.config.cjs
             pm2 save
             
             echo "✅ Deployment complete at $(date)"
-          DEPLOY_SCRIPT
 
       - name: Notify Discord (Success)
         if: success()
         run: |
           curl -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
             -H "Content-Type: application/json" \
-            -d '{"embeds":[{"title":"✅ Deployment Complete","description":"Code pushed to main and deployed successfully","color":0x00ff00}]}'
+            -d '{"embeds":[{"title":"✅ Deployment Complete","description":"Code pushed to main and deployed successfully trên AI Phase 15","color":65280}]}'
 
       - name: Notify Discord (Failure)
         if: failure()
         run: |
           curl -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
             -H "Content-Type: application/json" \
-            -d '{"embeds":[{"title":"❌ Deployment Failed","description":"Check GitHub Actions logs for details","color":0xff0000}]}'
+            -d '{"embeds":[{"title":"❌ Deployment Failed","description":"Check GitHub Actions logs for details","color":16711680}]}'
