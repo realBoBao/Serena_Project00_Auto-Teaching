@@ -215,7 +215,7 @@ const INTENT_KEYWORDS = {
   INCIDENT: ['!incident', 'chaos', 'sự cố', 'production incident', '3am alert'],
   ANALYZE: ['!analyze', 'phân tích', 'analyze', 'tổng hợp', 'code quality'],
   AUDIT: ['!audit', 'security audit', 'quét bảo mật', 'vulnerability scan'],
-  PROFILE: ['!profile', 'performance', 'benchmark', 'profiling'],
+  PERF: ['!perf', 'performance', 'benchmark', 'profiling'],
   LOGS: ['!logs', 'log analysis', 'phân tích log', 'error log'],
   RAG: ['!ask', 'tìm kiếm', 'search', 'hỏi', 'giải thích', 'là gì', 'như thế nào'],
 };
@@ -235,7 +235,8 @@ async function classifyIntentAsync(text) {
   if (lower.startsWith('!incident')) return 'INCIDENT';
   if (lower.startsWith('!analyze ')) return 'ANALYZE';
   if (lower.startsWith('!audit ')) return 'AUDIT';
-  if (lower.startsWith('!profile ')) return 'PROFILE';
+  if (lower.startsWith('!perf ')) return 'PERF';
+  if (lower.startsWith('!profile')) return 'PROFILE';
   if (lower.startsWith('!logs ')) return 'LOGS';
   if (lower.startsWith('!memory ') || lower.startsWith('!mem ')) return 'MEMORY';
   if (lower.startsWith('!ask ')) return 'RAG';
@@ -269,7 +270,8 @@ function classifyIntent(text) {
   if (lower.startsWith('!incident')) return 'INCIDENT';
   if (lower.startsWith('!analyze ')) return 'ANALYZE';
   if (lower.startsWith('!audit ')) return 'AUDIT';
-  if (lower.startsWith('!profile ')) return 'PROFILE';
+  if (lower.startsWith('!perf ')) return 'PERF';
+  if (lower.startsWith('!profile')) return 'PROFILE';
   if (lower.startsWith('!logs ')) return 'LOGS';
   if (lower.startsWith('!memory ') || lower.startsWith('!mem ')) return 'MEMORY';
   if (lower.startsWith('!ask ')) return 'RAG';
@@ -371,9 +373,17 @@ client.on(Events.MessageCreate, async (message) => {
           '`!quiz` — Ôn tập flashcard\n' +
           '`!quiz stats` — Xem thống kê\n' +
           '`!answer <id> <đáp án>` — Trả lời flashcard\n' +
-          '`!learn <url>` — Học từ URL/PDF\n' +
-          '`!schedule url <link>` — Sync thời khóa biểu\n' +
-          '`!schedule upload` — Upload file .ics/.csv\n\n' +
+          '`!learn <url>` — Học từ URL/PDF\n\n' +
+          '**🔍 Phân tích & Kiểm tra:**\n' +
+          '`!analyze <code>` — Phân tích chất lượng code\n' +
+          '`!audit <code>` — Quét bảo mật code\n' +
+          '`!profile <code>` — Phân tích performance\n' +
+          '`!logs <text>` — Phân tích logs\n\n' +
+          '**⚙️ Tuỳ chọn:**\n' +
+          '`!preferences show` — Xem tuỳ chọn hiện tại\n' +
+          '`!preferences model openrouter|gemini|auto` — Chọn model ưu tiên\n' +
+          '`!preferences sources youtube,github` — Chọn nguồn ưu tiên\n' +
+          '`!preferences learning on|off` — Bật/tắt tự học\n\n' +
           '**🎨 Sáng tạo:**\n' +
           '`!animate <mô tả>` — Tạo video animation\n' +
           '`!animate <mô tả> --async` — Render nền\n\n' +
@@ -1231,14 +1241,14 @@ client.on(Events.MessageCreate, async (message) => {
       return;
     }
 
-    // ── !profile command: Performance Profiling ──
-    if (message.content.startsWith('!profile ')) {
-      const code = message.content.slice(9).trim();
+    // ── !perf command: Performance Profiling ──
+    if (message.content.startsWith('!perf ')) {
+      const code = message.content.slice(6).trim();
       if (!code) {
         return message.reply({
-          content: '⚡ **Performance Profiler** — Phán tích performance\n\n' +
-            '**Cách dùng:** `!profile <code>`\n' +
-            '**Ví dụ:** `!profile for(let i=0;i<arr.length;i++) arr[i]++`\n\n' +
+          content: '⚡ **Performance Profiler** — Phân tích performance\n\n' +
+            '**Cách dùng:** `!perf <code>`\n' +
+            '**Ví dụ:** `!perf for(let i=0;i<arr.length;i++) arr[i]++`\n\n' +
             '**Phân tích:**\n' +
             '1. Performance anti-patterns\n' +
             '2. Loop optimization\n' +
