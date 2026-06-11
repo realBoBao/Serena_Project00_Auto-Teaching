@@ -75,7 +75,7 @@ async function withRetry(fn, { retries = 2, baseDelayMs = 800, factor = 2, onRet
 }
 
 // ── Embedding with Cache ──
-async function embedTextCached(text) {
+export async function embedTextCached(text) {
   const cached = await getCachedEmbedding(text);
   if (cached) {
     logger.debug('[EmbeddingCache] HIT');
@@ -389,6 +389,11 @@ async function translateToEnglish(text) {
       systemPrompt: 'Translate the following Vietnamese text into fluent English. Return only the English translation, nothing else.',
       temperature: 0.1,
     });
+    // Nếu LLM return static fallback → translation fail, dùng text gốc
+    if (result.provider === 'static' || result.answer.includes('chế độ offline')) {
+      logger.warn('[Translate] LLM returned static fallback, using original text');
+      return text;
+    }
     return result.answer || text;
   } catch {
     logger.warn('Translation fallback due to error');

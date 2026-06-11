@@ -391,6 +391,70 @@ client.on(Events.MessageCreate, async (message) => {
       });
     }
 
+    // ── !profile command: Xem hồ sơ học tập ──
+    if (message.content === '!profile' || message.content.startsWith('!profile ')) {
+      try {
+        const { userProfileManager } = await import('./lib/user_profile.js');
+        const userId = message.author.id;
+        const profile = userProfileManager.getProfile(userId, message.author.username);
+        const stats = profile.topic_stats || {};
+
+        const totalQuestions = Object.values(stats).reduce((s, t) => s + (t.asked || 0), 0);
+        const totalCorrect   = Object.values(stats).reduce((s, t) => s + (t.correct || 0), 0);
+        const accuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+
+        const topStrengths = Object.entries(profile.strengths || {})
+          .sort(([,a],[,b]) => b - a).slice(0, 5);
+        const topWeak = Object.entries(profile.weak_areas || {})
+          .sort(([,a],[,b]) => b - a).slice(0, 3);
+
+        const speedBar = '█'.repeat(Math.round(profile.learn_speed * 10)) +
+                         '░'.repeat(10 - Math.round(profile.learn_speed * 10));
+
+        const { EmbedBuilder } = await import('discord.js');
+        const embed = new EmbedBuilder()
+          .setColor(0x7F77DD)
+          .setTitle(`📊 Hồ sơ học tập — ${message.author.username}`)
+          .addFields(
+            { name: '📈 Tổng quan', value: `Tổng câu hỏi: **${totalQuestions}** | Chính xác: **${accuracy}%** | Sessions: **${profile.session_count || 0}**`, inline: false },
+            { name: '⚡ Tốc độ tiếp thu', value: `\`${speedBar}\` ${Math.round(profile.learn_speed * 100)}%`, inline: false },
+            { name: '🎯 Phong cách học', value: `\`${profile.learn_style || 'example_first'}\` · Độ chi tiết: \`${profile.depth_pref || 'auto'}\``, inline: false },
+            { name: '💪 Điểm mạnh', value: topStrengths.length ? topStrengths.map(([t, s]) => `\`${t}\` ${Math.round(s*100)}%`).join(' | ') : '_Chưa đủ dữ liệu_', inline: false },
+            { name: '📝 Cần ôn thêm', value: topWeak.length ? topWeak.map(([t, c]) => `\`${t}\` (hỏi lại ${c} lần)`).join(' | ') : '_Không có_', inline: false },
+          )
+          .setFooter({ text: 'Dùng !prefer example_first | theory_first | code_heavy | concise | detailed để điều chỉnh' });
+
+        await message.reply({ embeds: [embed] });
+      } catch (err) {
+        await message.reply({ content: `❌ Lỗi profile: ${err?.message || err}` });
+      }
+      return;
+    }
+
+    // ── !prefer command: Điều chỉnh phong cách học ──
+    if (message.content.startsWith('!prefer ')) {
+      try {
+        const { userProfileManager } = await import('./lib/user_profile.js');
+        const args = message.content.slice(8).trim().split(/\s+/);
+        const value = args[0];
+        const validStyles = ['example_first', 'theory_first', 'code_heavy', 'visual'];
+        const validDepths = ['concise', 'detailed', 'auto'];
+
+        if (validStyles.includes(value)) {
+          userProfileManager.setPreference(message.author.id, 'style', value);
+          await message.reply(`✅ Đã cập nhật phong cách học: \`${value}\``);
+        } else if (validDepths.includes(value)) {
+          userProfileManager.setPreference(message.author.id, 'depth', value);
+          await message.reply(`✅ Đã cập nhật độ chi tiết: \`${value}\``);
+        } else {
+          await message.reply('📋 Dùng: `!prefer example_first | theory_first | code_heavy | visual | concise | detailed | auto`');
+        }
+      } catch (err) {
+        await message.reply({ content: `❌ Lỗi: ${err?.message || err}` });
+      }
+      return;
+    }
+
     // ── !memory command: Lưu trí nhớ ──
     if (intent === 'MEMORY' || message.content.startsWith('!memory ') || message.content.startsWith('!mem ')) {
       const memQuery = message.content.replace(/^!memory\s*|^!mem\s*/i, '').trim();
