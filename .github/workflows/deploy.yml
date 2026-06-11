@@ -23,12 +23,14 @@ jobs:
           host: ${{ secrets.GCP_HOST }}
           username: ${{ secrets.GCP_USERNAME }}
           key: ${{ secrets.GCP_SSH_KEY }}
+          script_stop: true
+          timeout: 120s
           script: |
             set -e
             echo "=== Starting deployment at $(date) ==="
             
-            # Đã sửa lại đúng tên thư mục gốc trên máy chủ của bạn
-            cd ~/ai-brain || { echo "❌ Project dir not found"; exit 1; }
+            # Navigate to project directory
+            cd ~/my-ai-brain || cd ~/ai-brain || cd /home/${USER}/my-ai-brain || { echo "❌ Project dir not found"; exit 1; }
             echo "📁 Working dir: $(pwd)"
             
             echo "📥 Pulling latest code..."

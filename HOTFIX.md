@@ -1,5 +1,29 @@
 # 🔥 HOTFIX — Production Server Issues
 
+## 0. CI/CD Deploy — SSH Permission Denied
+
+**Error:** `***@***: Permission denied (publickey)`
+
+**Nguyên nhân:** SSH key trong GitHub Secrets (`GCP_SSH_KEY`) không khớp với server.
+
+**Fix trên GitHub:**
+1. Vào repo → Settings → Secrets and variables → Actions
+2. Kiểm tra `GCP_SSH_KEY` có đúng private key không
+3. Nếu key mới, cần update cả 3 secrets:
+   - `GCP_HOST` — IP/domain của VPS
+   - `GCP_USERNAME` — username SSH (ví dụ: `realBoBao`)
+   - `GCP_SSH_KEY` — nội dung file `~/.ssh/id_rsa` (private key)
+
+**Tạo SSH key mới (nếu cần):**
+```bash
+# Trên local machine
+ssh-keygen -t ed25519 -C "github-actions-deploy"
+# Copy public key lên server
+ssh-copy-id -i ~/.ssh/id_ed25519.pub realBoBao@server_host
+# Copy private key vào GitHub Secrets
+cat ~/.ssh/id_ed25519
+```
+
 ## 1. `Pipeline error: score is not defined`
 
 **Nguyên nhân:** Trong `pipeline_report_v2.js`, hàm `calculateSourceScore()` trả về giá trị 0-1, nhưng code so sánh `r.score >= 6` (giả định thang 0-10).
