@@ -263,7 +263,16 @@ function formatWebContext(results) {
 function formatSourcesWithScore(results, type = 'web', maxItems = 5) {
   if (!results || results.length === 0) return '';
 
-  const items = results.slice(0, maxItems);
+  // Deduplicate by URL
+  const seen = new Set();
+  const deduped = results.filter(r => {
+    const key = r.url || r.title || '';
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const items = deduped.slice(0, maxItems);
   const lines = [];
 
   for (let i = 0; i < items.length; i++) {
@@ -601,7 +610,11 @@ async function searchYouTube(query) {
     const statsData = await statsRes.json();
 
     const results = [];
+    const seenVideoIds = new Set();
     for (const video of statsData?.items || []) {
+      // Deduplicate by video ID
+      if (seenVideoIds.has(video.id)) continue;
+      seenVideoIds.add(video.id);
       const views = parseInt(video?.statistics?.viewCount || 0);
       const likes = parseInt(video?.statistics?.likeCount || 0);
       if (views < YOUTUBE_MIN_VIEWS) continue;

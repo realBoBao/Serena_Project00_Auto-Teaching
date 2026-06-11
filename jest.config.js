@@ -18,6 +18,12 @@ export default {
     'agents/**/*.js',
     '!lib/vector_store_qdrant.js',
   ],
+  // Exclude directories that cause Haste naming collisions
+  modulePathIgnorePatterns: [
+    '<rootDir>/artifacts/',
+    '<rootDir>/backups/',
+    '<rootDir>/node_modules/',
+  ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
 
