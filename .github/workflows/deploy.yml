@@ -31,8 +31,8 @@ jobs:
             cd ~/ai-brain || { echo "❌ Project dir not found"; exit 1; }
             echo "📁 Working dir: $(pwd)"
             echo "📥 Pulling latest code..."
-            # Reset runtime data files before pull
-            git checkout -- .scheduler_last_run.json data/processed.json 2>/dev/null || true
+            # Stash local changes (package-lock.json, runtime data) before pull
+            git stash --include-untracked 2>/dev/null || true
             git pull https://x-access-token:${GH_PAT}@github.com/realBoBao/Serena_Project00_Auto-Teaching.git main
             echo "📦 Installing dependencies..."
             # Remove old lock file and node_modules to avoid version conflicts
