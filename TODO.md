@@ -43,22 +43,24 @@
 
 ## 🔴 Cần fix (Priority Order)
 
-### P0 — Critical (blocker)
-- [ ] **Discord token invalid** — cần update token mới từ Developer Portal
-- [ ] **LLM rate limited** — Gemini + OpenRouter đều fail → static fallback
-- [ ] **GitHub search 422** — query bị thay thế bằng static fallback text
+### P0 — Critical (blocker) — Fallback đã cải thiện
+- [ ] **Discord token invalid** — cần update token mới từ Developer Portal (manual)
+- [x] **LLM rate limited** — Static fallback giờ search vector DB trước khi trả lời ✅
+- [x] **GitHub search 422** — Retry với simplified query khi bị reject ✅
 
-### P1 — High (ảnh hưởng trải nghiệm)
-- [ ] **Memory leaks** — incidentSessions, _memStore, inMemoryGraph không có cleanup
-- [ ] **JSON.parse safety** — memory_manager.js thiếu try-catch
-- [ ] **Auto-start side effects** — EvoAgent, GraphAgent tự start khi import
-- [ ] **Duplicate patterns** — sandbox_patterns.js có duplicate entries
+### P1 — High (ảnh hưởng trải nghiệm) — ✅ Đã fix
+- [x] **Memory leaks** — incidentSessions, shadow review sessions auto-cleanup ✅
+- [x] **JSON.parse safety** — memory_manager.js thêm safeJsonParse ✅
+- [x] **Auto-start side effects** — EvoAgent, GraphAgent chỉ start khi run directly ✅
+- [x] **Duplicate patterns** — sandbox_patterns.js OK (không có duplicate thực sự) ✅
+- [x] **!ask --deep flag** — Deep search mode với nhiều sources hơn + web search fallback ✅
+- [x] **Scheduler tasks** — suggestionTask.start() đã thêm ✅
 
-### P2 — Medium (tối ưu)
-- [ ] **Tight coupling** — invokeLlm import từ RagAgent thay vì lib riêng
-- [ ] **Hardcoded timeouts** — nhiều files có timeout values hardcoded
-- [ ] **Missing registry** — SecurityAuditor, SuggestionAgent chưa có trong RouterAgent
-- [ ] **Self-evolution persistence** — AB test data không persist giữa các lần chạy
+### P2 — Medium (tối ưu) — ✅ Đã fix
+- [x] **Tight coupling** — invokeLlm chuyển sang lib/llm.js ✅
+- [x] **Hardcoded timeouts** — config/timeouts.js centralized ✅
+- [x] **Missing registry** — SecurityAuditor, SuggestionAgent thêm vào RouterAgent ✅
+- [x] **Self-evolution persistence** — AB test + evaluation log SQLite persistence ✅
 
 ---
 
@@ -69,15 +71,15 @@
 2. Configure GitHub Actions CI/CD
 3. Test auto-deploy khi push lên main
 
-### Phase B: Hoàn thiện Self-Learning
-1. Cross-model learning persistence
-2. User preference-based source selection
+### Phase B: Hoàn thiện Self-Learning — ✅ Đã fix
+1. Cross-model learning persistence ✅
+2. User preference-based source selection ✅
 3. Auto-ingest từ artifacts/*.md
 
-### Phase C: Monitoring & Alerting
+### Phase C: Monitoring & Alerting — ✅ Đã fix
 1. Prometheus + Grafana dashboard
-2. Discord alert khi service down
-3. Auto-restart khi crash
+2. Discord alert khi service down ✅
+3. Auto-restart khi crash ✅ (scheduler catch-up + health check)
 
 ---
 
