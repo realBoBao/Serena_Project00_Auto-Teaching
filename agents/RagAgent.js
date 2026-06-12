@@ -23,6 +23,69 @@ import {
   getUserPreference,
 } from '../lib/cross_model_learner.js';
 // Lazy imports for optional features (loaded on demand to reduce startup memory)
+
+// ── Fallback: Lấy random sources từ database khi LLM hỏng ──
+async function getRandomSourcesFromDb(query, topic, limit = 10) {
+  try {
+    // 1. Thử vector search với query embedding
+    const { embedText } = await import('../lib/embeddings.js');
+    const { search: vectorSearch } = await import('../lib/vector_store.js');
+    const embedding = await embedText(query);
+    const vecResults = await vectorSearch(embedding, limit);
+    if (vecResults.length > 0) {
+      return vecResults.map(r => ({
+        title: r.doc_id || r.url || 'Unknown',
+        url: r.url || '',
+        description: r.chunk_text?.slice(0, 200) || '',
+        source: r.source || 'database',
+        score: r.score || 0.5,
+      }));
+    }
+  } catch { /* ignore */ }
+
+  // 2. Fallback: lấy random từ SQLite
+  try {
+    const { getDb } = await import('../lib/flashcard_db.js');
+    const db = getDb();
+    const rows = db.prepare(`
+      SELECT DISTINCT question as title, answer as description, source, category
+      FROM flashcards
+      WHERE category LIKE ? OR question LIKE ?
+      ORDER BY RANDOM()
+      LIMIT ?
+    `).all(`%${topic}%`, `%${query}%`, limit);
+    if (rows.length > 0) {
+      return rows.map(r => ({
+        title: r.title,
+        url: '',
+        description: r.description?.slice(0, 200) || '',
+        source: r.source || 'flashcard',
+        score: 0.5,
+      }));
+    }
+  } catch { /* ignore */ }
+
+  // 3. Last resort: lấy bất kỳ sources nào từ DB
+  try {
+    const { getDb } = await import('../lib/flashcard_db.js');
+    const db = getDb();
+    const rows = db.prepare(`
+      SELECT DISTINCT question as title, answer as description, source
+      FROM flashcards
+      ORDER BY RANDOM()
+      LIMIT ?
+    `).all(limit);
+    return rows.map(r => ({
+      title: r.title,
+      url: '',
+      description: r.description?.slice(0, 200) || '',
+      source: r.source || 'database',
+      score: 0.3,
+    }));
+  } catch {
+    return [];
+  }
+}
 let _bandit = null;
 let _pagerank = null;
 async function getBandit() { if (!_bandit) _bandit = await import('../lib/bandit.js'); return _bandit; }
@@ -1174,6 +1237,27 @@ export async function answerQuestion(query, options = {}) {
   } catch (err) {
     logger.warn('Web synthesize failed:', err?.message || String(err));
     lastError = err;
+  }
+
+  // ── Fallback: Khi LLM hỏng, lấy random sources từ database ──
+  logger.warn('[RagAgent] All LLM providers failed, falling back to database sources');
+  try {
+    const dbSources = await getRandomSourcesFromDb(cleanQuery, predictedTopic, 10);
+    if (dbSources.length > 0) {
+      const context = formatWebContext(dbSources);
+      const answer = `⚠️ LLM tạm thời không khả dụng. Dưới đây là các nguồn liên quan từ database:\n\n${context}`;
+      endSpan(rootSpan, { fallback: 'db-sources', count: dbSources.length });
+      return {
+        answer,
+        source: 'db-fallback',
+        results: dbSources,
+        predictedTopic,
+        traceId,
+        sourcesFormatted: formatSourcesWithScore(dbSources, 'database'),
+      };
+    }
+  } catch (dbErr) {
+    logger.warn('[RagAgent] DB fallback also failed:', dbErr?.message);
   }
 
   // Final error
