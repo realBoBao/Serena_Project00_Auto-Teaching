@@ -1853,18 +1853,25 @@ client.on(Events.MessageCreate, async (message) => {
       return;
     }
 
-    // ── !learn-path command: Learning Path Generator ──
-    if (message.content.startsWith('!learn-path ')) {
-      const topic = message.content.slice(12).trim();
-      if (!topic) {
+    // ── !path command: Learning Path Generator ──
+    if (message.content.startsWith('!path ') || message.content.startsWith('!learn-path ')) {
+      const prefixLen = message.content.startsWith('!path ') ? 6 : 12;
+      const raw = message.content.slice(prefixLen).trim();
+      if (!raw) {
         return message.reply({
           content: '📚 **Learning Path Generator**\n\n' +
-            '**Cách dùng:** `!learn-path <topic>`\n' +
-            '**Ví dụ:** `!learn-path distributed-systems`\n\n' +
+            '**Cách dùng:** `!path <topic> [--short] [--gaps]`\n' +
+            '**Ví dụ:** `!path distributed systems`\n' +
+            '`!path algorithms --short` — chỉ 5 bước\n' +
+            '`!path systems --gaps` — chỉ topic cần học\n\n' +
             'Tạo lộ trình học từ Knowledge Graph + Flashcard stats.',
           allowedMentions: { parse: [], repliedUser: false },
         });
       }
+
+      const short = raw.includes('--short');
+      const gapsOnly = raw.includes('--gaps');
+      const topic = raw.replace(/--\w+/g, '').trim();
 
       const waitingMsg = await message.reply({
         content: `📚 Đang tạo lộ trình học cho **${topic}**...`,
@@ -1872,16 +1879,23 @@ client.on(Events.MessageCreate, async (message) => {
       });
 
       try {
-        const { generateLearningPath, formatLearningPath } = await import('./lib/learning_path.js');
-        const pathData = await generateLearningPath(topic, { maxDepth: 5 });
-        const output = formatLearningPath(pathData);
-        await waitingMsg.edit({
-          content: truncateForDiscord(output),
-          allowedMentions: { parse: [] },
+        const { LearningPathGenerator } = await import('./lib/learning_path.js');
+        const userId = message.author.id;
+        const result = await LearningPathGenerator.generate(userId, topic, {
+          maxDepth: short ? 3 : 6,
+          maxNodes: short ? 8 : 20,
         });
+
+        if (result.error) {
+          await waitingMsg.edit({ content: `❌ ${result.error}`, allowedMentions: { parse: [] } });
+          return;
+        }
+
+        const { embeds } = LearningPathGenerator.formatDiscord(result, { short, gapsOnly });
+        await waitingMsg.edit({ content: '', embeds, allowedMentions: { parse: [] } });
       } catch (err) {
         await waitingMsg.edit({
-          content: `❌ Lỗi tạo learning path: ${err?.message || err}`,
+          content: `❌ Lỗi tạo lộ trình: ${err?.message || err}`,
           allowedMentions: { parse: [] },
         });
       }

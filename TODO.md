@@ -7,6 +7,7 @@
 > **!profile fix:** Thêm PROFILE vào INTENT_KEYWORDS + routing ✅
 > **Git conflict fix:** .gitignore thêm .query_dedup.json, .scheduler_last_run.json ✅
 > **API:** 30+ REST endpoints | **PWA:** Mobile companion with voice input + offline sync | **Knowledge Graph:** SQLite-backed with D3.js visualization
+> **Socratic Mode:** Hoàn thiện — SocraticAgent + hint system + escape hatch + auto-detect ✅
 
 ---
 

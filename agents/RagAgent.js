@@ -891,18 +891,53 @@ async function synthesizeAnswer(query, context, sourceType, userId = null) {
     } catch { /* profile optional */ }
   }
 
-  const prompt = sourceType === 'web'
-    ? `Local data is missing. Use the following Web Context to answer in natural Vietnamese with Vietnamese diacritics. If URLs are available, cite them at the end.${sourceInfo}\n\n⚠️ QUAN TRỌNG: Ưu tiên thông tin từ nguồn đáng tin cậy nhất (YouTube > GitHub > Facebook > Web). Nếu các nguồn mâu thuẫn, dùng nguồn có độ tin cậy cao hơn.${profileContext ? '\n\n' + profileContext : ''}\n\nWeb Context:\n${context}\n\nQuestion: ${query}\n\nAnswer:`
-    : `Use the system Context below to answer the question in natural Vietnamese with Vietnamese diacritics. If the context is not enough, clearly say that you could not find suitable data and suggest how to search or rephrase.${profileContext ? '\n\n' + profileContext : ''}\n\nContext:\n${context}\n\nQuestion: ${query}\n\nAnswer:`;
+  // ── Mem0: Inject recent conversation memory ──
+  let mem0Context = '';
+  if (userId) {
+    try {
+      const { searchMemory } = await import('../lib/mem0_client.js');
+      const recentMemories = await searchMemory(userId, query, 3);
+      if (recentMemories.length > 0) {
+        mem0Context = `\n\n[RECENT MEMORY - ${userId}]\n${recentMemories.map(m => `- ${m}`).join('\n')}`;
+      }
+    } catch { /* mem0 optional */ }
+  }
 
+  // ── Headroom: Compress context to save tokens ──
+  let compressedContext = context;
   try {
-    return await invokeLlm([new HumanMessage(systemInstruction), new HumanMessage(prompt)], 'LLM');
+    const { compress } = await import('headroom');
+    if (compress && context.length > 2000) {
+      compressedContext = await compress(context, { ratio: 0.5 });
+      if (process.env.DEBUG) {
+        console.log(`[RagAgent] Context compressed: ${context.length} → ${compressedContext.length} chars`);
+      }
+    }
+  } catch { /* headroom optional, fallback to raw context */ }
+
+  const prompt = sourceType === 'web'
+    ? `Local data is missing. Use the following Web Context to answer in natural Vietnamese with Vietnamese diacritics. If URLs are available, cite them at the end.${sourceInfo}\n\n⚠️ QUAN TRỌNG: Ưu tiên thông tin từ nguồn đáng tin cậy nhất (YouTube > GitHub > Facebook > Web). Nếu các nguồn mâu thuẫn, dùng nguồn có độ tin cậy cao hơn.${profileContext ? '\n\n' + profileContext : ''}\n\nWeb Context:\n${compressedContext}\n\nQuestion: ${query}\n\nAnswer:`
+    : `Use the system Context below to answer the question in natural Vietnamese with Vietnamese diacritics. If the context is not enough, clearly say that you could not find suitable data and suggest how to search or rephrase.${profileContext ? '\n\n' + profileContext : ''}${mem0Context}\n\nContext:\n${compressedContext}\n\nQuestion: ${query}\n\nAnswer:`;
+
+  let answer;
+  try {
+    answer = await invokeLlm([new HumanMessage(systemInstruction), new HumanMessage(prompt)], 'LLM');
   } catch (err) {
     logger.warn('[RagAgent] synthesizeAnswer LLM failed, using context fallback:', err?.message);
     // Fallback: trả về context summary khi LLM không available
     const contextSummary = context.slice(0, 2000);
-    return `⚠️ LLM tạm thời không khả dụng (rate limited). Dưới đây là thông tin tham khảo:\n\n${contextSummary}`;
+    answer = `⚠️ LLM tạm thời không khả dụng (rate limited). Dưới đây là thông tin tham khảo:\n\n${contextSummary}`;
   }
+
+  // ── Mem0: Record Q&A for future context ──
+  if (userId && answer && answer.length > 50) {
+    try {
+      const { addMemory } = await import('../lib/mem0_client.js');
+      await addMemory(userId, `Q: ${query.slice(0, 200)}\nA: ${answer.slice(0, 300)}`);
+    } catch { /* mem0 optional */ }
+  }
+
+  return answer;
 }
 
 async function selfReflectAnswerGate({ query, answer, results, source }) {

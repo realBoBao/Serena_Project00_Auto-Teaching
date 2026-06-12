@@ -170,18 +170,26 @@ route('GET', '/api/scheduler/status', async (req, res) => {
   }
 }, { public: true });
 
-// ── Learning Path Generator ──
+// ── Learning Path Generator (Phase 26) ──
 route('GET', '/api/learning-path', async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const topic = url.searchParams.get('topic');
   if (!topic) return json(res, { error: 'Missing topic parameter' }, 400);
 
-  const maxDepth = parseInt(url.searchParams.get('depth') || '5');
-  const includeReviewed = url.searchParams.get('includeReviewed') === 'true';
+  const userId = url.searchParams.get('userId') || 'anonymous';
+  const maxDepth = parseInt(url.searchParams.get('depth') || '6');
+  const maxNodes = parseInt(url.searchParams.get('maxNodes') || '20');
+  const short = url.searchParams.get('short') === 'true';
+  const gapsOnly = url.searchParams.get('gaps') === 'true';
 
   try {
-    const path = await generateLearningPath(topic, { maxDepth, includeReviewed });
-    json(res, { ok: true, path });
+    const { LearningPathGenerator } = await import('./lib/learning_path.js');
+    const result = await LearningPathGenerator.generate(userId, topic, { maxDepth, maxNodes });
+    if (result.error) return json(res, { error: result.error }, 404);
+
+    // Also include Discord-formatted embeds for convenience
+    const discordFormat = LearningPathGenerator.formatDiscord(result, { short, gapsOnly });
+    json(res, { ok: true, ...result, discord: discordFormat });
   } catch (err) {
     json(res, { error: err.message }, 500);
   }
