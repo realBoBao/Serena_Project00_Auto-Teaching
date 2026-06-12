@@ -490,7 +490,7 @@ const graphTask = cron.schedule(GRAPH_CRON, async () => {
 });
 
 // ── Data Pipeline: 14:00 & 20:00 mỗi ngày — Search & Scrape tài liệu ──
-// Dùng timezone Asia/Ho_Chi_Minh (UTC+7) để chạy đúng giờ Việt Nam
+// Dùng timezone America/Los_Angeles (PDT/PST) — tự động adjust DST
 const PIPELINE_CRON = '0 14,20 * * *';
 const pipelineTask = cron.schedule(PIPELINE_CRON, () => {
   console.log('[scheduler] Pipeline triggered at', new Date().toISOString());
@@ -502,7 +502,7 @@ const pipelineTask = cron.schedule(PIPELINE_CRON, () => {
   child.unref();
   console.log(`[scheduler] Pipeline spawned with PID ${child.pid}`);
 }, {
-  timezone: 'Asia/Ho_Chi_Minh', // UTC+7 — giờ Việt Nam
+  timezone: 'America/Los_Angeles', // PDT (UTC-7) / PST (UTC-8) — tự động adjust DST
 });
 
 task.start();
