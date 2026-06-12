@@ -245,6 +245,8 @@ async function classifyIntentAsync(text) {
   if (lower.startsWith('!audit ')) return 'AUDIT';
   if (lower.startsWith('!perf ')) return 'PERF';
   if (lower.startsWith('!profile')) return 'PROFILE';
+  if (lower.startsWith('!history ')) return 'HISTORY';
+  if (lower.startsWith('!whenwas ')) return 'WHENWAS';
   if (lower.startsWith('!logs ')) return 'LOGS';
   if (lower.startsWith('!memory ') || lower.startsWith('!mem ')) return 'MEMORY';
   if (lower.startsWith('!ask ')) return 'RAG';
@@ -485,6 +487,88 @@ client.on(Events.MessageCreate, async (message) => {
         } else {
           await message.reply('📋 Dùng: `!prefer example_first | theory_first | code_heavy | visual | concise | detailed | auto`');
         }
+      } catch (err) {
+        await message.reply({ content: `❌ Lỗi: ${err?.message || err}` });
+      }
+      return;
+    }
+
+    // ── !history command: Xem facts gần đây từ Temporal KG ──
+    if (intent === 'HISTORY' || message.content.startsWith('!history ')) {
+      try {
+        const { TemporalKG } = await import('./lib/temporal_kg.js');
+        const args = message.content.slice(9).trim();
+        const daysMatch = args.match(/^(\d+)\s+(.+)/);
+        const days = daysMatch ? parseInt(daysMatch[1]) : 30;
+        const topic = daysMatch ? daysMatch[2] : args;
+
+        if (!topic) {
+          return message.reply({ content: '📋 Dùng: `!history <topic>` hoặc `!history 7 <topic>`' });
+        }
+
+        const facts = TemporalKG.getRecentFacts(topic, days);
+        if (!facts.length) {
+          return message.reply({ content: `🔍 Không tìm thấy facts nào về **${topic}** trong ${days} ngày gần đây.` });
+        }
+
+        const lines = facts.map(f =>
+          `• **${f.source}** → *${f.relationship_type}* → **${f.target}** (${Math.round(f.confidence * 100)}%)`
+        ).join('\n');
+
+        const { EmbedBuilder } = await import('discord.js');
+        const embed = new EmbedBuilder()
+          .setColor(0x1D9E75)
+          .setTitle(`📚 Facts về "${topic}" — ${days} ngày gần đây`)
+          .setDescription(lines.slice(0, 4000))
+          .setFooter({ text: `${facts.length} facts tìm thấy · !whenwas để query tại thời điểm cụ thể` });
+
+        await message.reply({ embeds: [embed] });
+      } catch (err) {
+        await message.reply({ content: `❌ Lỗi: ${err?.message || err}` });
+      }
+      return;
+    }
+
+    // ── !whenwas command: Query KG tại thời điểm cụ thể ──
+    if (intent === 'WHENWAS' || message.content.startsWith('!whenwas ')) {
+      try {
+        const { TemporalKG } = await import('./lib/temporal_kg.js');
+        const args = message.content.slice(9).trim();
+        const parts = args.split(' ');
+        const dateStr = parts[parts.length - 1];
+        const isDate = /\d{4}-\d{2}-\d{2}/.test(dateStr);
+        const topic = isDate ? parts.slice(0, -1).join(' ') : parts.join(' ');
+        const pointInTime = isDate ? new Date(dateStr).toISOString() : null;
+
+        if (!topic) {
+          return message.reply({ content: '📋 Dùng: `!whenwas <topic>` hoặc `!whenwas <topic> YYYY-MM-DD`' });
+        }
+
+        const facts = TemporalKG.searchAtTime(topic, pointInTime);
+        const label = pointInTime ? `vào ${dateStr}` : 'hiện tại';
+
+        if (!facts.length) {
+          return message.reply({ content: `🔍 Không có facts nào về **${topic}** ${label}.` });
+        }
+
+        const current = facts.filter(f => f.status === 'current');
+        const historical = facts.filter(f => f.status === 'historical');
+
+        const fmt = (arr) => arr.map(f =>
+          `• **${f.source}** → *${f.relationship_type}* → **${f.target}** (${Math.round(f.confidence * 100)}%)`
+        ).join('\n') || '_Không có_';
+
+        const { EmbedBuilder } = await import('discord.js');
+        const embed = new EmbedBuilder()
+          .setColor(0x7F77DD)
+          .setTitle(`🕐 Knowledge Graph về "${topic}" ${label}`)
+          .addFields(
+            { name: `✅ Đang valid (${current.length})`, value: fmt(current).slice(0, 1000), inline: false },
+            { name: `📜 Lịch sử (${historical.length})`, value: fmt(historical).slice(0, 1000), inline: false },
+          )
+          .setFooter({ text: '!whenwas <topic> YYYY-MM-DD để query tại thời điểm cụ thể' });
+
+        await message.reply({ embeds: [embed] });
       } catch (err) {
         await message.reply({ content: `❌ Lỗi: ${err?.message || err}` });
       }
