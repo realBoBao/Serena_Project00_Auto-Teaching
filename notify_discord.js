@@ -142,8 +142,19 @@ export async function sendAggregatedWebhook({ topic, results, bullets, isError =
     return false;
   }
 
+  // ── Deduplication: Loại bỏ sources trùng URL ──
+  const seenUrls = new Set();
+  const deduped = [];
+  for (const r of results) {
+    const key = (r.url || r.title || '').toLowerCase().trim();
+    if (key && !seenUrls.has(key)) {
+      seenUrls.add(key);
+      deduped.push(r);
+    }
+  }
+
   // Sort by score giảm dần
-  const sorted = [...results].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const sorted = [...deduped].sort((a, b) => (b.score || 0) - (a.score || 0));
 
   // Build sources list with Markdown hyperlinks
   const sourcesLines = sorted.slice(0, 15).map((r, i) => {
