@@ -22,7 +22,7 @@
  */
 
 import { HumanMessage } from '@langchain/core/messages';
-import { invokeLlm } from './RagAgent.js';
+import { invokeLlm } from '../lib/llm.js';
 import { solveWithDebugLoop } from './CoderAgent.js';
 import { withTimeout, TimeoutError } from '../lib/with_timeout.js';
 import { sandboxGateway } from '../sandbox_gateway.js';

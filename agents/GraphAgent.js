@@ -9,7 +9,7 @@
  */
 
 import { createWorker, addJob, JobType, QueueName } from '../lib/task_queue.js';
-import { invokeLlm } from './RagAgent.js'; // Tích hợp động cơ Tier-2 OpenRouter
+import { invokeLlm } from '../lib/llm.js';
 import { HumanMessage } from '@langchain/core/messages';
 import { embedText } from '../lib/embeddings.js';
 
@@ -417,7 +417,12 @@ async function gracefulShutdown(signal) {
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
-// ── Auto-start ──
-start();
+// ── Auto-start (only when run directly, not when imported) ──
+if (import.meta.url === `file://${process.argv[1]}`) {
+  start().catch(err => {
+    console.error('[GraphAgent] Auto-start failed:', err.message);
+    process.exit(1);
+  });
+}
 
 export { start, stop, getStatus, queryGraph, processJob };

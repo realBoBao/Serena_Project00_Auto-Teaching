@@ -87,6 +87,20 @@ const AGENT_REGISTRY = {
     enabled: true,
     cost: 'high',
   },
+  security: {
+    name: 'SecurityAuditor',
+    description: 'Security audit — secrets detection, vulnerability scan, unsafe functions',
+    import: () => import('./SecurityAuditor.js'),
+    enabled: true,
+    cost: 'low',
+  },
+  suggestion: {
+    name: 'SuggestionAgent',
+    description: 'Learning suggestions — recommends topics, flashcards, study paths',
+    import: () => import('./SuggestionAgent.js'),
+    enabled: true,
+    cost: 'low',
+  },
 };
 
 // ── Intent → Agent Mapping ──

@@ -349,7 +349,12 @@ async function gracefulShutdown(signal) {
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
-// ── Auto-start ──
-start();
+// ── Auto-start (only when run directly, not when imported) ──
+if (import.meta.url === `file://${process.argv[1]}`) {
+  start().catch(err => {
+    console.error('[EvoAgent] Auto-start failed:', err.message);
+    process.exit(1);
+  });
+}
 
 export { start, stop, getStatus, processJob };

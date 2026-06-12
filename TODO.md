@@ -1,8 +1,11 @@
 # 📋 TODO — my-ai-brain Roadmap
 
-> **Cập nhật:** 2026-06-11 06:00
+> **Cập nhật:** 2026-06-11 07:00
 > **Test Coverage:** 320/320 PASS (100%) | **Flashcards:** 198 cards | **Uptime:** 24/7 PM2
 > **PM2 Services:** 10/10 online | **Redis:** In-memory fallback mode | **Security:** CSP + CORS + API key rotation + IP filtering + Audit log
+> **UserProfile:** Hoàn thiện — getUserPreference, getProfileStats, streak, level/xp, cleanupOldEvents ✅
+> **!profile fix:** Thêm PROFILE vào INTENT_KEYWORDS + routing ✅
+> **Git conflict fix:** .gitignore thêm .query_dedup.json, .scheduler_last_run.json ✅
 > **API:** 30+ REST endpoints | **PWA:** Mobile companion with voice input + offline sync | **Knowledge Graph:** SQLite-backed with D3.js visualization
 
 ---

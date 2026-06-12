@@ -20,7 +20,7 @@
  */
 
 import { executeCode } from '../lib/code_sandbox.js';
-import { invokeLlm } from './RagAgent.js';
+import { invokeLlm } from '../lib/llm.js';
 import { HumanMessage } from '@langchain/core/messages';
 import { getLogger } from '../lib/logger.js';
 
@@ -521,3 +521,25 @@ export function updateIncidentSession(sessionId, updates) {
   if (s) Object.assign(s, updates);
   return s;
 }
+
+/**
+ * Cleanup old incident sessions (giữ 1 giờ gần nhất).
+ * Gọi định kỳ để tránh memory leak.
+ */
+export function cleanupIncidentSessions(maxAgeMs = 3600000) {
+  const now = Date.now();
+  let cleaned = 0;
+  for (const [id, s] of incidentSessions) {
+    if (now - s.startTime > maxAgeMs) {
+      incidentSessions.delete(id);
+      cleaned++;
+    }
+  }
+  if (cleaned > 0) {
+    logger.info(`[IncidentAgent] Cleaned up ${cleaned} old sessions`);
+  }
+  return cleaned;
+}
+
+// Auto-cleanup mỗi 5 phút
+setInterval(() => cleanupIncidentSessions(), 300000);

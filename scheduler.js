@@ -281,11 +281,29 @@ async function checkCatchUp() {
     }
   }
 
-  // ── Gửi Discord notification với kết quả thực tế ──
-  // TẮT THÔNG BÁO CATCH-UP QUA DISCORD (giữ lại log console)
+  // ── Gửi Discord alert khi service down ──
   if (missedJobs.length > 0) {
-    console.log(`[scheduler] Catch-up ran for: ${missedJobs.map(j => j.name).join(', ')} (Discord notification disabled)`);
-    // Discord notification disabled — uncomment below to re-enable
+    console.log(`[scheduler] ⚠️ Catch-up ran for: ${missedJobs.map(j => j.name).join(', ')}`);
+    try {
+      const webhookUrl = process.env.DISCORD_WEBHOOK;
+      if (webhookUrl) {
+        const alertLines = missedJobs.map(j => {
+          const status = catchUpResults[j.name]?.error ? '❌ FAILED' : '✅ RECOVERED';
+          const detail = catchUpResults[j.name]?.error || catchUpResults[j.name]?.output || '';
+          return `${status} **${j.name}** — ${detail.slice(0, 100)}`;
+        });
+        const payload = {
+          content: `🚨 **Service Alert** — ${missedJobs.length} service(s) recovered\n\n${alertLines.join('\n')}\n\n⏰ ${new Date().toISOString()}`,
+        };
+        await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+    } catch (notifyErr) {
+      console.error('[scheduler] Discord alert failed:', notifyErr.message);
+    }
     // const catchUpKey = `catchup_notified_${new Date().toISOString().slice(0, 10)}`;
     // if (!global[catchUpKey]) {
     //   console.log(`[scheduler] 📢 Sending catch-up notification for: ${missedJobs.map(j => j.name).join(', ')}`);

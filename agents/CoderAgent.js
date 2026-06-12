@@ -21,7 +21,7 @@
  */
 
 import { executeCode, getSupportedLanguages } from '../lib/code_sandbox.js';
-import { invokeLlm } from './RagAgent.js';
+import { invokeLlm } from '../lib/llm.js';
 import { HumanMessage } from '@langchain/core/messages';
 import { getLogger } from '../lib/logger.js';
 import { totSolve } from '../lib/tot_mcts.js';

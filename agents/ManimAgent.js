@@ -19,7 +19,7 @@
  */
 
 import { HumanMessage } from '@langchain/core/messages';
-import { invokeLlm } from './RagAgent.js';
+import { invokeLlm } from '../lib/llm.js';
 import { withTimeout, TimeoutError } from '../lib/with_timeout.js';
 import { getLogger } from '../lib/logger.js';
 import fs from 'fs/promises';
