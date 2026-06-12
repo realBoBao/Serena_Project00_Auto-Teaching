@@ -71,7 +71,14 @@ class Orchestrator extends EventEmitter {
       case 'pdf_file':
         return { filePath: event.filePath };
       case 'discord_question':
-        return { query: event.query, options: { biasTopic: event.biasTopic } };
+        return {
+          query: event.query,
+          options: {
+            biasTopic: event.biasTopic,
+            isDeep: event.options?.isDeep || false,
+            preferredSources: event.options?.preferredSources || [],
+          },
+        };
       case 'discord_interaction':
         return { topic: event.topic };
       case 'repo_url':

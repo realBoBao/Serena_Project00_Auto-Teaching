@@ -508,6 +508,7 @@ backupTask.start();
 evoTask.start();
 graphTask.start();
 pipelineTask.start();
+suggestionTask.start();
 
 async function gracefulShutdown(signal) {
   console.log(`[scheduler] Received ${signal}, stopping all cron tasks...`);
@@ -517,6 +518,7 @@ async function gracefulShutdown(signal) {
   evoTask.stop();
   graphTask.stop();
   pipelineTask.stop();
+  suggestionTask.stop();
 
   process.exit(0);
 }

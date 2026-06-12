@@ -907,12 +907,23 @@ export async function answerQuestion(query, options = {}) {
     };
   }
 
+  // ── Deep Search mode: tăng sources + web search ──
+  const isDeep = options.isDeep || false;
+  const preferredSources = options.preferredSources || [];
+
+  // Deep Search mode: tăng sources + web search
+  if (isDeep) {
+    maxResults = 8;  // Từ 4 → 8
+    webSearchLimit = 5; // Từ 3 → 5
+  }
+
   // ── Distributed Tracing ──
   const traceId = options.traceId || generateTraceId();
   const rootSpan = startSpan('RagAgent.answerQuestion', {
     traceId,
     query: cleanQuery.slice(0, 200),
     source: 'rag-agent',
+    isDeep,
   });
 
   const predictedTopic = options.biasTopic || (await getPredictedTopic());

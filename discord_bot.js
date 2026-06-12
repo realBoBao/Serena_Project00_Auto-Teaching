@@ -1863,16 +1863,25 @@ client.on(Events.MessageCreate, async (message) => {
       return;
     }
 
-    const query = message.content.slice(prefix.length).trim();
-    if (!query) {
+    // Parse query + flags (--deep, --source=xxx)
+    const rawInput = message.content.slice(prefix.length).trim();
+    if (!rawInput) {
       return message.reply({
         content: `Vui long gui cau hoi sau lenh ${prefix}, vi du: ${prefix}He thong RAG hoat dong the nao?`,
         allowedMentions: { parse: [], repliedUser: false },
       });
     }
 
+    // Extract flags
+    const isDeep = rawInput.includes('--deep');
+    const sourceMatch = rawInput.match(/--source=(\S+)/);
+    const preferredSources = sourceMatch ? sourceMatch[1].split(',') : [];
+    const query = rawInput.replace(/\s*--deep\s*/g, '').replace(/\s*--source=\S+\s*/g, '').trim();
+
     const waitingMsg = await message.reply({
-      content: 'Dang xu ly cau hoi cua ban...',
+      content: isDeep
+        ? '🔍 **Deep Search** đang chạy... (tìm kiếm sâu qua nhiều nguồn)'
+        : 'Dang xu ly cau hoi cua ban...',
       allowedMentions: { parse: [], repliedUser: false },
     });
 
@@ -1883,7 +1892,7 @@ client.on(Events.MessageCreate, async (message) => {
         allowedMentions: { parse: [] },
       });
     }
-    requestQueue.push({ query, waitingMsg, message });
+    requestQueue.push({ query, waitingMsg, message, isDeep, preferredSources });
 
     // UX: show position in queue (1-based)
     const position = requestQueue.length;
@@ -1922,7 +1931,14 @@ client.on(Events.MessageCreate, async (message) => {
                 result = await orchestrator.route({ type: 'discord_question', query: job.query });
               }
             } else {
-              result = await orchestrator.route({ type: 'discord_question', query: job.query });
+              result = await orchestrator.route({
+                type: 'discord_question',
+                query: job.query,
+                options: {
+                  isDeep: job.isDeep || false,
+                  preferredSources: job.preferredSources || [],
+                },
+              });
             }
 
             if (result?.error) {
