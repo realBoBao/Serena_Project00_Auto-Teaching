@@ -35,9 +35,12 @@ jobs:
             git checkout -- .scheduler_last_run.json data/processed.json 2>/dev/null || true
             git pull https://x-access-token:${GH_PAT}@github.com/realBoBao/Serena_Project00_Auto-Teaching.git main
             echo "📦 Installing dependencies..."
-            # Use npm install to avoid lock file sync issues between Node versions
+            # Remove old lock file and node_modules to avoid version conflicts
             rm -f package-lock.json
-            npm install --legacy-peer-deps --only-production 2>&1 | tail -5
+            rm -rf node_modules
+            # Fresh install with legacy peer deps (Node 20 compatible)
+            npm install --legacy-peer-deps --only-production 2>&1 | tail -10
+            echo "📦 Installed $(ls node_modules | wc | awk '{print $1}') packages"
             echo "🔄 Restarting PM2..."
             pm2 restart AI_Brain --update-env || pm2 start ecosystem.config.cjs
             pm2 save
