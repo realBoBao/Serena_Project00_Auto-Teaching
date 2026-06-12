@@ -28,6 +28,68 @@ let _pagerank = null;
 async function getBandit() { if (!_bandit) _bandit = await import('../lib/bandit.js'); return _bandit; }
 async function getPagerank() { if (!_pagerank) _pagerank = await import('../lib/graph_pagerank.js'); return _pagerank; }
 
+// Confidence scoring (lazy import to avoid circular deps)
+let _confidenceScorer = null;
+async function getConfidenceScorer() {
+  if (!_confidenceScorer) _confidenceScorer = await import('../lib/confidence_scorer.js');
+  return _confidenceScorer;
+}
+
+// ── Confidence Scoring Helper ──────────────────────────────────────────────
+// Wraps answer with confidence score and optional Discord suffix
+async function applyConfidenceScoring({ question, answer, results, jaccardSim, skipSelfCheck }) {
+  try {
+    const scorer = await getConfidenceScorer();
+    const confidence = await scorer.ConfidenceScorer.compute({
+      question,
+      answer,
+      searchResults: results || [],
+      jaccardSim: jaccardSim ?? null,
+      skipSelfCheck: skipSelfCheck ?? false,
+    });
+
+    // Track metrics
+    try {
+      const { ragConfidenceHistogram, ragLowConfidenceCounter, ragSelfCheckCounter } = await import('../lib/metrics.js');
+      ragConfidenceHistogram.observe({ level: confidence.level }, confidence.score);
+      if (['low', 'very_low'].includes(confidence.level)) {
+        ragLowConfidenceCounter.inc({ level: confidence.level });
+      }
+      if (confidence.usedSelfCheck) {
+        ragSelfCheckCounter.inc({ trigger: confidence.signals.selfCheck < 0.5 ? 'signal_conflict' : 'uncertain_zone' });
+      }
+    } catch { /* metrics optional */ }
+
+    // Handle very_low confidence — refuse to answer
+    if (confidence.level === 'very_low') {
+      const fallbackText = `❌ Tôi không tìm thấy đủ thông tin về **"${question}"** trong knowledge base.\n`
+        + `> Confidence score: ${Math.round(confidence.score * 100)}%\n\n`
+        + `Bạn có thể:\n`
+        + `- Gõ \`!search ${question}\` để tôi tìm online\n`
+        + `- Upload tài liệu liên quan qua \`!pdf\``;
+      return {
+        answer: fallbackText,
+        confidence,
+        answered: false,
+      };
+    }
+
+    // Format Discord suffix for medium/low confidence
+    const suffix = scorer.ConfidenceScorer.formatDiscordSuffix(confidence);
+    const finalAnswer = suffix ? answer + suffix : answer;
+
+    return {
+      answer: finalAnswer,
+      confidence,
+      answered: true,
+    };
+  } catch (err) {
+    // Confidence scoring must never break the pipeline
+    logger.debug('[ConfidenceScoring] Error:', err?.message || err);
+    return { answer, confidence: null, answered: true };
+  }
+}
+
 const similarityThreshold = Number(process.env.DISCORD_SIMILARITY_THRESHOLD || 0.6);
 const maxResults = Number(process.env.DISCORD_MAX_RESULTS || 4);
 const webSearchLimit = Number(process.env.DISCORD_WEB_SEARCH_LIMIT || 10);
@@ -970,7 +1032,8 @@ export async function answerQuestion(query, options = {}) {
           learnFromResponse(cleanQuery, answer, 'local', localResults).catch(() => {});
           updateSourcePreference(predictedTopic, 'local', gate.pass ? 0.8 : 0.3);
         }
-        return { answer, source: 'local', results: localResults, predictedTopic, sourcesFormatted: formatSourcesWithScore(localResults, 'local') };
+        const scored = await applyConfidenceScoring({ question: cleanQuery, answer, results: localResults });
+        return { ...scored, source: 'local', results: localResults, predictedTopic, sourcesFormatted: formatSourcesWithScore(localResults, 'local') };
       }
 
       // ── Query Expansion with Promise.any (Fast-Exit) ──
@@ -1019,7 +1082,8 @@ export async function answerQuestion(query, options = {}) {
 
       const fallbackSnippet = formatRetrievedSnippets(localResults);
       const safe = gate.safeAnswer || `Toi khong dam bao cau tra loi nay hoan toan dung vi du lieu hien co chua du. Duoi day la cac mảnh thong tin de ban doi chieu:\n\n${fallbackSnippet}`;
-      return { answer: safe, source: 'local', results: localResults, predictedTopic, sourcesFormatted: formatSourcesWithScore(localResults, 'local') };
+      const scored = await applyConfidenceScoring({ question: cleanQuery, answer: safe, results: localResults });
+      return { ...scored, source: 'local', results: localResults, predictedTopic, sourcesFormatted: formatSourcesWithScore(localResults, 'local') };
     }
   } catch (err) {
     logger.warn('Local synthesize/retrieval failed:', err?.message || String(err));
@@ -1063,12 +1127,14 @@ export async function answerQuestion(query, options = {}) {
           learnFromResponse(cleanQuery, answer, 'web', finalResults).catch(() => {});
           updateSourcePreference(predictedTopic, 'web', gate.pass ? 0.8 : 0.3);
         }
-        return { answer, source: 'web', results: finalResults, predictedTopic, sourcesFormatted: formatSourcesWithScore(finalResults, 'web') };
+        const scored = await applyConfidenceScoring({ question: cleanQuery, answer, results: finalResults });
+        return { ...scored, source: 'web', results: finalResults, predictedTopic, sourcesFormatted: formatSourcesWithScore(finalResults, 'web') };
       }
 
       const fallbackSnippet = formatRetrievedSnippets(finalResults);
       const safe = gate.safeAnswer || `Toi khong dam bao cau tra loi nay hoan toan dung vi du lieu hien co chua du. Duoi day la cac mảnh thong tin de ban doi chieu:\n\n${fallbackSnippet}`;
-      return { answer: safe, source: 'web', results: finalResults, predictedTopic, sourcesFormatted: formatSourcesWithScore(finalResults, 'web') };
+      const scored = await applyConfidenceScoring({ question: cleanQuery, answer: safe, results: finalResults });
+      return { ...scored, source: 'web', results: finalResults, predictedTopic, sourcesFormatted: formatSourcesWithScore(finalResults, 'web') };
     }
   } catch (err) {
     logger.warn('Web synthesize failed:', err?.message || String(err));

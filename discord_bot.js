@@ -24,6 +24,13 @@ import { createAnimation, createAnimationWithCompression, createAnimationAsync }
 import { startShadowReview, submitReviewAnswer, getNextHint } from './agents/MentorAgent.js';
 import { generateIncident, evaluateHotfix, createIncidentSession, getIncidentSession } from './agents/IncidentAgent.js';
 import { analyzeUrl } from './agents/AnalysisAgent.js';
+import {
+  getSocraticSession,
+  startSocraticSession,
+  handleSocraticReply,
+  extractTopic,
+  SocraticAgent,
+} from './agents/SocraticAgent.js';
 
 const requestQueue = [];
 let isProcessingQueue = false;
@@ -350,6 +357,24 @@ client.on(Events.MessageCreate, async (message) => {
       return; // Silent drop — bucket rỗng
     }
     cleanupTokenBuckets();
+
+
+    // ── 0. Socratic Mode: Kiểm tra session đang active ──
+    const activeSocratic = await getSocraticSession(message.author.id);
+    if (activeSocratic) {
+      // User đang trong Socratic session — xử lý câu trả lời
+      await handleSocraticReply(message, activeSocratic);
+      return; // Không route sang agent khác
+    }
+
+    // ── 0b. Explicit !learn command → bắt đầu Socratic ──
+    if (message.content.startsWith('!learn ')) {
+      const topic = message.content.slice(7).trim();
+      if (topic) {
+        await startSocraticSession(message, topic, true);
+        return;
+      }
+    }
 
     // ── Router: Phân loại intent (Semantic + Keyword fallback) ──
     const intent = await classifyIntentAsync(message.content);
@@ -1877,6 +1902,17 @@ client.on(Events.MessageCreate, async (message) => {
     const sourceMatch = rawInput.match(/--source=(\S+)/);
     const preferredSources = sourceMatch ? sourceMatch[1].split(',') : [];
     const query = rawInput.replace(/\s*--deep\s*/g, '').replace(/\s*--source=\S+\s*/g, '').trim();
+
+    // ── Socratic Auto-detect: nếu topic đã học → tự động Socratic ──
+    // Chỉ khi KHÔNG có --deep flag (deep mode ưu tiên hơn)
+    if (!isDeep) {
+      const detectedTopic = await extractTopic(query);
+      if (detectedTopic && SocraticAgent.shouldUseSocratic(message.author.id, detectedTopic)) {
+        logger.info(`[Socratic] Auto-detected topic "${detectedTopic}" for user ${message.author.id}`);
+        await startSocraticSession(message, detectedTopic, false, query);
+        return;
+      }
+    }
 
     const waitingMsg = await message.reply({
       content: isDeep
