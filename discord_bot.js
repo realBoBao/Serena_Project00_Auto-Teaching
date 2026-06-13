@@ -369,6 +369,26 @@ client.on(Events.MessageCreate, async (message) => {
       return; // Không route sang agent khác
     }
 
+    // ── 0b. Feedback handler (👍/👎) ──
+    if (message.content.startsWith('feedback:')) {
+      const parts = message.content.split(':');
+      const sentiment = parts[1]; // '👍' or '👎'
+      const originalMessageId = parts[2];
+      // Store feedback cho F1 evaluation
+      try {
+        const { getDb } = await import('./lib/flashcard_db.js');
+        const db = getDb();
+        db.prepare(`
+          INSERT INTO f1_feedback (user_id, message_id, sentiment, created_at)
+          VALUES (?, ?, ?, datetime('now'))
+        `.run(message.author.id, originalMessageId, sentiment);
+        await message.reply(`✅ Feedback recorded: ${sentiment}`);
+      } catch (err) {
+        await message.reply('❌ Lỗi khi lưu feedback.');
+      }
+      return;
+    }
+
     // ── 0b. Explicit !learn command → bắt đầu Socratic ──
     if (message.content.startsWith('!learn ')) {
       const topic = message.content.slice(7).trim();
@@ -427,6 +447,30 @@ client.on(Events.MessageCreate, async (message) => {
           '`!help` — Hiện danh sách lệnh này',
         allowedMentions: { parse: [], repliedUser: false },
       });
+    }
+
+    // ── !f1stats command: F1 Score Dashboard ──
+    if (message.content === '!f1stats' || message.content.startsWith('!f1stats ')) {
+      try {
+        const { F1Evaluator } = await import('./lib/f1_evaluator.js');
+        const { getDb } = await import('./lib/flashcard_db.js');
+        const db = getDb();
+        const days = parseInt(message.content.slice(8).trim()) || 7;
+        const metricsList = await F1Evaluator.getAllMetrics(db, days);
+        const output = F1Evaluator.formatDashboard(metricsList);
+        await message.reply({
+          embeds: [{
+            color: 0x7F77DD,
+            title: `📊 F1 Score Dashboard — ${days} ngày gần đây`,
+            description: output,
+            footer: { text: 'Gap cao = accuracy illusion. F1 là số đáng tin.' },
+          }],
+          allowedMentions: { parse: [], repliedUser: false },
+        });
+      } catch (err) {
+        await message.reply(`❌ Lỗi: ${err?.message || err}`);
+      }
+      return;
     }
 
     // ── !profile command: Xem hồ sơ học tập ──
@@ -2091,12 +2135,24 @@ client.on(Events.MessageCreate, async (message) => {
             const safeTopic = previewTopic(topicLabel);
             const customId = rememberInterestTopic(topicLabel);
 
-            const button = new ButtonBuilder()
+            const interestBtn = new ButtonBuilder()
               .setCustomId(customId)
               .setLabel(`Quan tam: ${safeTopic}`)
               .setStyle(ButtonStyle.Primary);
 
-            const row = new ActionRowBuilder().addComponents(button);
+            // 👍/👎 feedback buttons cho F1 evaluation
+            const feedbackRow = new ActionRowBuilder().addComponents(
+              new ButtonBuilder()
+                .setCustomId(`feedback:👍:${job.message.id}`)
+                .setLabel('👍')
+                .setStyle(ButtonStyle.Success),
+              new ButtonBuilder()
+                .setCustomId(`feedback:👎:${job.message.id}`)
+                .setLabel('👎')
+                .setStyle(ButtonStyle.Danger),
+            );
+
+            const row = new ActionRowBuilder().addComponents(interestBtn);
 
             // Build response with source scores
             let responseText = result.answer || 'Khong tim thay cau tra loi phu hop.';
