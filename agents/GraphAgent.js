@@ -375,7 +375,7 @@ async function start() {
 async function stop() {
   console.log('[GraphAgent] Stopping...');
   state.isRunning = false;
-  if (state.worker) await state.worker.close();
+  if (state.worker && typeof state.worker.close === 'function') await state.worker.close();
   if (state.driver) await state.driver.close();
   console.log('🛑 [GraphAgent] Stopped');
 }
