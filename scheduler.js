@@ -425,9 +425,7 @@ async function saveLastRun(type, status = 'done') {
 // Kiểm tra xem job có đang chạy không
 function isJobRunning(type) {
   try {
-    const fs = require('fs');
-    if (!fs.existsSync(CATCH_UP_FILE)) return false;
-    const lastRuns = JSON.parse(fs.readFileSync(CATCH_UP_FILE, 'utf8'));
+    const lastRuns = readJsonSafe(CATCH_UP_FILE, {});
     return lastRuns[type]?.status === 'running';
   } catch {
     return false;
@@ -444,10 +442,8 @@ if (RUN_ON_START) {
   setTimeout(() => {
     // Skip if catch-up already ran pipeline recently (within 5 minutes)
     try {
-      const fs = require('fs');
-      const lastRun = fs.readFileSync(CATCH_UP_FILE, 'utf8');
-      const data = JSON.parse(lastRun);
-      const lastPipeline = data.pipeline ? new Date(data.pipeline) : null;
+      const lastRuns = readJsonSafe(CATCH_UP_FILE, {});
+      const lastPipeline = lastRuns.pipeline?.ts ? new Date(lastRuns.pipeline.ts) : null;
       if (lastPipeline && (Date.now() - lastPipeline.getTime()) < 300000) {
         console.log('[scheduler] Startup pipeline skipped — catch-up ran recently');
         return;

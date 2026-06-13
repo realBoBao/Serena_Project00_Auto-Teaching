@@ -16,7 +16,7 @@
  * Cron: 0 2 * * * (2:00 AM daily)
  */
 
-import { fetchWithRetry } from './lib/fetch_retry.js';
+import { fetchWithRetry } from '../lib/fetch_retry.js';
 import { chunkText } from './lib/chunking.js';
 import { embedText, embedTextsBatch } from './lib/embeddings.js';
 import { upsertAcademic, upsertSystem, upsertDaily } from './lib/vector_collections.js';
@@ -247,7 +247,10 @@ async function processAndStore(items, collection, sourceLabel) {
 
       // Embed
       const embeddings = await embedTextsBatch(chunks);
-      if (!embeddings.length) continue;
+      if (!embeddings || !embeddings.length) {
+        logger.warn(`[${sourceLabel}] Embedding failed for "${item.title?.slice(0, 40)}"`);
+        continue;
+      }
 
       // Upsert to Qdrant
       const docId = `${sourceLabel}:${item.title?.slice(0, 40) || Date.now()}`;
