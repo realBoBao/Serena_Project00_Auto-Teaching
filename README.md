@@ -1,58 +1,79 @@
 # 🧠 My AI Brain — Multi-Agent AI System
 
 > Hệ thống AI đa tác nhân tự học, tự tiến hóa, tự bảo mật.
+> **335 tests PASS (100%) | 22 test suites | PM2 Production Ready**
+
+![CI](https://github.com/realBoBao/Serena_Project00_Auto-Teaching/actions/workflows/ci.yml/badge.svg)
+
+---
 
 ## ✨ Tính năng chính
 
-### 🤖 19 AI Agents
+### 🤖 22 AI Agents
 | Agent | Vai trò |
 |---|---|
-| **RagAgent** | RAG-powered Q&A (Vector + BM25 + HyDE + Query Expansion) |
-| **CoderAgent** | Viết + chạy code với AddressSanitizer |
+| **RagAgent** | RAG-powered Q&A (Vector + BM25 + HyDE + Query Expansion + Confidence Scoring) |
+| **CoderAgent** | Viết + chạy code với AddressSanitizer & self-debug loop |
 | **DebateAgent** | Tranh luận đa tác nhân (Coder vs Rag → Judge) |
-| **SocraticAgent** | Phương pháp dạy học Socratic |
-| **MentorAgent** | Senior Dev review code |
+| **SocraticAgent** | Phương pháp dạy học Socratic (hỏi ngược, hint system) |
+| **MentorAgent** | Senior Dev review code (Shadow Review) |
 | **IncidentAgent** | Chaos Engineering (8 loại sự cố production) |
-| **SecurityAuditor** | Quét bảo mật code (secrets, SQLi, XSS) |
-| **PerformanceProfiler** | Phân tích performance |
-| **LogAnalyzer** | Phân tích logs |
-| **ManimAgent** | Tạo video animation |
+| **SecurityAuditor** | Quét bảo mật code (secrets, SQLi, XSS, path traversal) |
+| **PerformanceProfiler** | Phân tích performance & Big O |
+| **LogAnalyzer** | Phân tích logs thông minh |
+| **ManimAgent** | Tạo video animation (Manim) |
 | **VisionAgent** | Phân tích ảnh (Gemini Vision) |
 | **VoiceAgent** | Transcribe giọng nói (whisper.cpp) |
-| **PdfAgent** | Xử lý PDF/EPUB |
-| **GraphAgent** | Knowledge Graph |
-| **EvoAgent** | Self-evolution (A/B testing, hyperparameter tuning) |
-| **SuggestionAgent** | Gợi ý học tập |
-| **AnalysisAgent** | Phân tích URL |
-| **InteractionAgent** | Discord interaction tracking |
-| **RouterAgent** | Intent classification + routing |
+| **PdfAgent** | Xử lý PDF/EPUB, trích xuất flashcards |
+| **GraphAgent** | Knowledge Graph (SQLite-backed, BFS traversal) |
+| **EvoAgent** | Self-evolution (A/B testing, hyperparameter tuning, OOM detection) |
+| **SuggestionAgent** | Gợi ý học tập cá nhân hóa |
+| **AnalysisAgent** | Phân tích URL với Bloom Filter dedup |
+| **InteractionAgent** | Discord interaction tracking + Markov prediction |
+| **RouterAgent** | Intent classification + routing (lazy-loaded agents) |
+| **PlannerAgent** | OODA Loop DAG Task Planner (Redis sessions) |
+| **AgentWorker** | BullMQ job processor (cluster mode) |
+| **PlannerWorker** | OODA task dispatcher |
 
-### 🔍 RAG Pipeline
-- **Vector Search** (SQLite/Qdrant/BigQuery)
-- **BM25 Search** (full-text)
-- **HyDE** (Hypothetical Document Embeddings)
-- **Query Expansion**
-- **Multi-space** (academic, system, daily)
-- **Source deduplication**
+### 🔍 RAG Pipeline (7 tầng)
+```
+Query → Semantic Cache → Hybrid Search (Vector + BM25) → Knowledge Graph Context
+                                                                    ↓
+Answer ← Confidence Scoring ← Self-Reflect Gate ← LLM Synthesis ← HyDE + Query Expansion
+```
+
+| Tầng | Công nghệ | Mô tả |
+|---|---|---|
+| **Semantic Cache** | Embedding cosine similarity (≥0.92) | Tránh gọi API cho câu hỏi lặp |
+| **Vector Search** | SQLite / Qdrant / BigQuery | Tìm kiếm ngữ nghĩa |
+| **BM25 Search** | Full-text TF-IDF | Tìm kiếm từ khóa |
+| **HyDE** | Hypothetical Document Embeddings | Tạo câu trả lời giả để tìm context tốt hơn |
+| **Query Expansion** | LLM-generated variants | Mở rộng câu hỏi với từ đồng nghĩa |
+| **Knowledge Graph** | SQLite BFS traversal | Bổ sung mối quan hệ giữa các khái niệm |
+| **Confidence Scoring** | 4-signal aggregation | Retrieval + Consensus + Source + Self-Check |
 
 ### 📚 Học tập
-- **Spaced Repetition** (FSRS thay SM-2)
-- **Socratic Mode** (hỏi ngược, hint system)
-- **Shadow Review** (ôn code cū)
-- **Learning Path** (DAG từ Knowledge Graph)
-- **F1 Evaluation** (đo lường chất lượng)
+- **Spaced Repetition** (FSRS thay SM-2) — thuật toán tối ưu interval ôn tập
+- **Socratic Mode** — hỏi ngược, hint system, không đáp án trực tiếp
+- **Shadow Review** — ôn code cũ với MentorAgent
+- **Learning Path** — DAG từ Knowledge Graph + Topological Sort + Flashcard stats
+- **Confidence Scoring** — 4 tín hiệu đánh giá chất lượng câu trả lời
 
 ### 🔒 Bảo mật
 - **4-layer sandbox** (Commands, Imports, Patterns, Exfiltration)
 - **Trust Levels** (UNTRUSTED → PRIVILEGED)
-- **Rate limiting** (per-agent)
-- **Audit logging**
+- **Rate limiting** (per-agent, per-IP)
+- **Audit logging** (mọi API call được log)
+- **Atomic file writes** (chống corrupt khi crash)
 
 ### 📊 Monitoring
+- **Prometheus Metrics** (confidence scores, query latency, cache hit rate)
 - **F1 Score Dashboard** (`!f1stats`)
 - **👍/👎 Feedback** (per-response)
-- **Discord alerts** (service down, errors)
-- **Health checks** (auto-restart)
+- **Health checks** (auto-restart via PM2)
+- **Semantic Cache stats** (hit rate, entries)
+
+---
 
 ## 🚀 Quick Start
 
@@ -66,88 +87,210 @@ npm install
 
 # 3. Configure
 cp .env.example .env
-# Edit .env with your API keys
+# Edit .env with your API keys (see below)
 
-# 4. Run
+# 4. Run tests
+npm test
+
+# 5. Start all services
 npm run dev
+
+# Or start individual services
+node discord_bot.js      # Discord bot
+node rest_api_server.js  # REST API (port 3005)
+node scheduler.js        # Cron jobs
 ```
 
-## 📋 Discord Commands
-
-```
-!ask <câu hỏi>     → RAG-powered Q&A
-!ask <câu hỏi> --deep → Deep search
-!run <code>        → Chạy code trong Sandbox
-!code <bài toán>   → Viết + chạy code
-!debate <bài toán> → Multi-agent debate
-!quiz              → Flashcard quiz
-!review            → Shadow Review
-!incident          → Chaos Engineering
-!learn <url>       → Học từ URL/PDF
-!path <topic>      → Learning Path
-!f1stats           → F1 Score Dashboard
-!profile           → Hồ sơ học tập
-!help              → Danh sách lệnh
-```
-
-## 🏗️ Kiến trúc
-
-```
-Discord/Webhook → Orchestrator → RouterAgent → [RagAgent, CoderAgent, ...]
-                                          ↓
-                                    Sandbox Gateway
-                                          ↓
-                              [Docker | In-Process]
-```
-
-## �️ BigQuery Setup (Optional)
-
-BigQuery có thể dùng làm vector store thay cho Qdrant:
-
-```bash
-# 1. Tạo Service Account key từ GCP Console
-# 2. Save as vertex-key.json
-# 3. Run setup
-node scripts/setup_bigquery.js
-```
-
-Hoặc dùng SQLite (mặc định) — không cần setup.
-
-## �📁 Cấu trúc thư mục
-
-```
-├── agents/           # 19 AI agents
-├── lib/              # Core libraries (RAG, sandbox, cache, etc.)
-├── tests/            # 22 test files
-├── .github/          # CI/CD workflows
-├── docs/             # Documentation
-├── scripts/          # Setup scripts
-├── artifacts/        # Generated reports
-└── backups/          # Auto-backups
-```
-
-## 🔑 API Keys cần thiết
+### 🔑 API Keys
 
 | Key | Bắt buộc | Mô tả |
 |---|---|---|
 | `DISCORD_BOT_TOKEN` | ✅ | Discord bot token |
-| `GEMINI_API_KEY` | ✅ | Gemini API key |
+| `GEMINI_API_KEY` | ✅ | Gemini API key (embeddings + LLM) |
 | `OPENROUTER_API_KEY` | ⚠️ | Fallback LLM |
 | `TAVILY_API_KEY` | ⚠️ | Web search |
 | `YOUTUBE_API_KEY` | ⚠️ | YouTube search |
 | `GITHUB_TOKEN` | ⚠️ | GitHub search |
+| `REST_API_KEY` | ⚠️ | REST API authentication |
+
+### 📁 Cấu trúc thư mục
+
+```
+├── agents/              # 22 AI agents
+│   ├── RagAgent.js      # RAG pipeline (54KB, core engine)
+│   ├── CoderAgent.js    # Code sandbox + self-debug
+│   ├── DebateAgent.js   # Multi-agent debate
+│   ├── EvoAgent.js      # Self-evolution
+│   ├── GraphAgent.js    # Knowledge Graph
+│   └── ...
+├── lib/                 # Core libraries
+│   ├── confidence_scorer.js   # 4-signal confidence scoring
+│   ├── semantic_cache.js      # Embedding-based query dedup
+│   ├── atomic_write.js        # Atomic JSON write/read
+│   ├── learning_path.js       # DAG learning path generator
+│   ├── knowledge_graph.js     # SQLite KG + BFS traversal
+│   ├── flashcard_db.js        # FSRS spaced repetition
+│   └── ...
+├── tests/               # 22 test files, 335 tests
+│   ├── e2e_pipeline.test.mjs  # E2E integration tests
+│   └── ...
+├── scripts/             # Setup & maintenance scripts
+├── public/              # PWA mobile companion
+├── artifacts/           # Generated reports
+└── backups/             # Auto-backups (weekly)
+```
+
+---
+
+## 📋 Discord Commands
+
+```
+!ask <câu hỏi>              → RAG-powered Q&A
+!ask <câu hỏi> --deep       → Deep search (8 results, 5 web sources)
+!run <code>                 → Chạy code trong Sandbox
+!code <bài toán>            → Viết + chạy code tự động
+!debate <bài toán>          → Multi-agent debate
+!quiz                       → Flashcard quiz (FSRS)
+!answer <id> <ans>          → Review flashcard
+!review                     → Shadow Review (ôn code)
+!incident                   → Chaos Engineering
+!learn <url>                → Học từ URL/PDF
+!path <topic>               → Learning Path (DAG từ KG)
+!path <topic> --short       → Chỉ 5 bước tiếp theo
+!path <topic> --gaps        → Chỉ topic cần học
+!f1stats                    → F1 Score Dashboard
+!profile                    → Hồ sơ học tập
+!preferences                → Tùy chọn model/sources/learning
+!help                       → Danh sách lệnh
+```
+
+### REST API Endpoints
+
+```
+GET  /api/health                    → Health check
+POST /api/ask                       → RAG Q&A
+GET  /api/learning-path?topic=X     → Learning path generator
+GET  /api/flashcards/due            → Due flashcards
+POST /api/flashcards                → Create flashcard
+POST /api/flashcards/:id/review     → Review flashcard
+GET  /api/graph/search?q=X          → Knowledge Graph search
+GET  /api/graph/stats               → KG statistics
+GET  /api/graph/export              → Export graph (D3.js format)
+GET  /api/evolution/stats           → Self-evolution statistics
+GET  /api/evolution/gaps            → Knowledge gaps
+GET  /api/cache/stats               → Embedding cache statistics
+POST /api/vision/analyze            → Image analysis
+POST /api/sandbox/run               → Code execution
+POST /api/debate                    → Multi-agent debate
+POST /api/notes                     → Quick note (iOS Shortcuts)
+```
+
+---
+
+## 🏗️ Kiến trúc
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Discord / Webhook                         │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │    Orchestrator      │
+                    │  (Event-driven)      │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │    RouterAgent       │
+                    │  (Intent routing)    │
+                    └──────────┬──────────┘
+                               │
+        ┌──────────────────────┼──────────────────────┐
+        │                      │                      │
+┌───────▼───────┐    ┌────────▼────────┐    ┌───────▼───────┐
+│  RagAgent     │    │  CoderAgent     │    │  DebateAgent  │
+│  (54KB core)  │    │  (Sandbox)      │    │  (Multi-round)│
+└───────┬───────┘    └────────┬────────┘    └───────┬───────┘
+        │                      │                      │
+        └──────────────────────┼──────────────────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │   RAG Pipeline       │
+                    │                      │
+                    │  Semantic Cache      │
+                    │  → Hybrid Search     │
+                    │  → KG Context        │
+                    │  → HyDE + Expand     │
+                    │  → LLM Synthesis     │
+                    │  → Confidence Score  │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │   Data Layer         │
+                    │                      │
+                    │  SQLite (vectors)    │
+                    │  Knowledge Graph     │
+                    │  Flashcard DB (FSRS) │
+                    │  Semantic Cache      │
+                    └─────────────────────┘
+```
+
+### Data Flow
+
+1. **Input** → Discord message → Orchestrator event
+2. **Routing** → RouterAgent classifies intent → dispatches to appropriate agent
+3. **Semantic Cache** → Check if similar query was answered before (cosine ≥ 0.92)
+4. **Retrieval** → Hybrid search (Vector + BM25) across 3 collections (academic, system, daily)
+5. **Enrichment** → Knowledge Graph context + HyDE + Query Expansion
+6. **Synthesis** → LLM generates answer with self-reflect gate
+7. **Confidence** → 4-signal scoring (Retrieval, Consensus, Source, Self-Check)
+8. **Output** → Answer + confidence suffix (if medium/low) + cache store
+
+---
 
 ## 📊 Cron Jobs
 
-| Thời gian (PDT) | Hành động |
+| Thời gian | Hành động |
 |---|---|
-| 8:00 AM | Search & scrape sources |
-| 11:00 AM | Search & scrape sources |
-| 2:00 PM | Search & scrape sources |
-| 5:00 PM | Search & scrape sources |
-| 8:00 PM | Search & scrape sources |
+| 8:00 AM, 11:00 AM, 2:00 PM, 5:00 PM, 8:00 PM | Search & scrape sources |
 | 2:00 AM | Memory consolidation |
-| 3:00 AM (Sun) | Backup |
+| 3:00 AM (Sunday) | Full backup (DB + artifacts) |
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run with coverage
+npm run test:coverage
+
+# Run specific test
+node --experimental-vm-modules node_modules/jest/bin/jest.js tests/rag_agent.test.js
+
+# Run E2E tests
+node --experimental-vm-modules node_modules/jest/bin/jest.js tests/e2e_pipeline.test.mjs
+```
+
+**Current: 335 tests PASS (100%) | 22 suites**
+
+---
+
+## 📱 Mobile Companion (PWA)
+
+```
+GET /           → PWA (flashcards, Q&A, knowledge graph, stats)
+GET /manifest.json → PWA manifest
+```
+
+Features:
+- Offline flashcard review (IndexedDB + background sync)
+- Voice input (Web Speech API, vi-VN)
+- Push notifications (flashcard reminders)
+- Knowledge Graph visualization (D3.js force-directed graph)
+
+---
 
 ## 📝 License
 
