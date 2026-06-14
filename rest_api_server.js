@@ -153,6 +153,13 @@ route('GET', '/api/metrics', (req, res) => {
   res.end(getPrometheusMetrics());
 }, { public: true });
 
+// ── Source Router Health ──
+import { healthCheck as sourceHealthCheck } from './lib/source_router.js';
+route('GET', '/api/sources/health', async (req, res) => {
+  const status = await sourceHealthCheck();
+  json(res, { ok: true, sources: status });
+}, { public: true });
+
 // ── Scheduler Status (catch-up tracking) ──
 route('GET', '/api/scheduler/status', async (req, res) => {
   try {
