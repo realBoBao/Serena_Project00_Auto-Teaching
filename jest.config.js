@@ -5,7 +5,7 @@ export default {
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
-  testMatch: ['**/tests/**/*.test.{js,mjs}'],
+  testMatch: ['**/tests/**/*.test.js'],
   // Skip tests that need API keys in CI environment
   testPathIgnorePatterns: process.env.CI === 'true' ? [
     'tests/PlannerAgent.test.js',

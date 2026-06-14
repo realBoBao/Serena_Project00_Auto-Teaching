@@ -26,11 +26,19 @@ import { getEvaluationStats, getModelPerformanceReport, getAllABTestResults, det
 import { listVideos, cleanupOldVideos } from './lib/video_cdn.js';
 import { generateLearningPath, formatLearningPath } from './lib/learning_path.js';
 import { getSecurityHeaders, validateApiKey, isIpAllowed, checkBodySize, auditLog } from './lib/security.js';
+import { handleInteraction, registerSlashCommands } from './discord_interactions.js';
+import { handleJob } from './cloud_scheduler_triggers.js';
+
+// Register Discord slash commands on startup (idempotent)
+registerSlashCommands().catch(err => {
+  console.warn('[REST API] Slash command registration failed:', err.message);
+});
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.resolve('./public');
 
-const PORT = process.env.REST_API_PORT || 3005;
+// Cloud Run sets PORT (default 8080); local dev uses REST_API_PORT or 3005
+const PORT = process.env.PORT || process.env.REST_API_PORT || 3005;
 const API_KEY = process.env.REST_API_KEY || 'change-me-in-production';
 
 if (!API_KEY) {
@@ -94,16 +102,10 @@ function json(res, data, status = 200) {
   res.end(JSON.stringify(data));
 }
 
-// ── Body Parser ──
+// ── Body Parser (uses pre-read body from server) ──
 function parseBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = '';
-    req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
-      try { resolve(JSON.parse(body || '{}')); }
-      catch { reject(new Error('Invalid JSON')); }
-    });
-  });
+  // Body is already read and parsed by the server handler
+  return Promise.resolve(req.body || {});
 }
 
 // ── Router ──
@@ -554,6 +556,38 @@ route('GET', '/api/graph-rag/stats', async (req, res) => {
   json(res, { ok: true, ...stats });
 });
 
+// ═══════════════════════════════════════════
+// ── Discord Interactions (Serverless Bot) ──
+// ═══════════════════════════════════════════
+// Discord sends interaction events here via HTTP POST.
+// This replaces the WebSocket-based discord_bot.js for Cloud Run.
+// Imports are at top of file (ESM static imports).
+
+route('POST', '/discord/interactions', async (req, res) => {
+  // req.rawBody and req.body are pre-populated by the server's body reader.
+  // handleInteraction verifies Ed25519 signature using req.rawBody.
+  await handleInteraction(req, res);
+}, { public: true });
+
+// ═══════════════════════════════════════════
+// ── Cloud Scheduler Triggers ──
+// ═══════════════════════════════════════════
+// Google Cloud Scheduler → HTTP POST → /scheduler/:job
+// Replaces node-cron scheduler.js for serverless operation.
+// Imports are at top of file (ESM static imports).
+
+route('POST', '/scheduler/:job', async (req, res, params) => {
+  const jobName = params.job;
+
+  try {
+    const result = await handleJob(jobName);
+    // Return 200 even on failure — Cloud Scheduler retries on 5xx only
+    json(res, result, 200);
+  } catch (err) {
+    json(res, { ok: false, error: err.message }, 500);
+  }
+}, { public: true });
+
 // ── 404 Handler ──
 function notFound(res) {
   json(res, { error: 'Not found' }, 404);
@@ -603,6 +637,18 @@ const server = http.createServer(async (req, res) => {
   // Body size check
   const bodySize = checkBodySize(req.headers['content-length']);
   if (!bodySize.ok) return json(res, { error: bodySize.error }, 413);
+
+  // Read raw body (needed for Discord signature verification + general parsing)
+  const rawBody = await new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => { data += chunk; });
+    req.on('end', () => resolve(data));
+    req.on('error', reject);
+  });
+
+  // Attach raw body and parsed JSON to req for handlers
+  req.rawBody = rawBody;
+  try { req.body = JSON.parse(rawBody || '{}'); } catch { req.body = {}; }
 
   // Route matching
   const matched = matchRoute(method, pathname);
