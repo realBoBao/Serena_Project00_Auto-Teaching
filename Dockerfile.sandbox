@@ -1,0 +1,36 @@
+# AI Sandbox — Docker container for secure code execution
+FROM node:20-slim
+
+# Install Python, C/C++ compilers
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip \
+    gcc g++ make \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN groupadd -r sandbox && useradd -r -g sandbox -d /home/sandbox -s /bin/bash sandbox
+
+# Set working directory
+WORKDIR /sandbox
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install dependencies (production only)
+RUN npm ci --only-production --ignore-scripts 2>/dev/null || npm install --legacy-peer-deps --only-production --ignore-scripts
+
+# Copy sandbox runner
+COPY sandbox_runner.js ./
+COPY lib/sandbox_policy.js ./lib/
+COPY lib/code_sandbox.js ./lib/
+
+# Set permissions
+RUN chown -R sandbox:sandbox /sandbox
+
+# Switch to non-root user
+USER sandbox
+
+# Security: No network, read-only FS, limited resources
+# Run with: docker run --rm --network none --memory 256m --cpus 0.5 --read-only --tmpfs /tmp:rw,noexec,size=50m --user 1000:1000 --cap-drop ALL --security-opt no-new-privileges ai-sandbox
+
+CMD ["node", "sandbox_runner.js"]

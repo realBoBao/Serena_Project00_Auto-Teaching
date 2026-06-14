@@ -28,10 +28,10 @@ describe('E2E: Scope Detector', () => {
 describe('E2E: RAG Quality', () => {
   it('should evaluate answer quality', async () => {
     const { evaluateRagAnswer } = await import('../lib/rag_evaluator.js');
-    const result = await evaluateRagAnswer(
+    const result = evaluateRagAnswer(
       'What is binary search?',
       'Binary search is an algorithm that finds the position of a target value within a sorted array.',
-      ['Binary search is an algorithm that finds the position of a target value within a sorted array by repeatedly dividing the search interval in half.']
+      'Binary search is an algorithm that finds the position of a target value within a sorted array by repeatedly dividing the search interval in half.'
     );
     expect(result.score).toBeGreaterThan(0.5);
   });
