@@ -1,5 +1,6 @@
 /**
  * E2E Integration Tests — Full Pipeline (ESM)
+ * Tests the integrated pipeline: Scope Detector → RAG → Quality Evaluator
  */
 import { describe, it, expect } from '@jest/globals';
 
@@ -34,5 +35,33 @@ describe('E2E: RAG Quality', () => {
       'Binary search is an algorithm that finds the position of a target value within a sorted array by repeatedly dividing the search interval in half.'
     );
     expect(result.score).toBeGreaterThan(0.5);
+    expect(result.passed).toBe(true);
+  });
+
+  it('should detect low quality answers', async () => {
+    const { evaluateRagAnswer } = await import('../lib/rag_evaluator.js');
+    const result = evaluateRagAnswer(
+      'What is binary search?',
+      'I like pizza and ice cream.',
+      'Binary search is an algorithm that finds the position of a target value within a sorted array.'
+    );
+    expect(result.score).toBeLessThan(0.5);
+  });
+
+  it('should handle empty context gracefully', async () => {
+    const { evaluateRagAnswer } = await import('../lib/rag_evaluator.js');
+    const result = evaluateRagAnswer('What is binary search?', 'Some answer.', '');
+    expect(result.relevancy).toBe(0);
+    expect(result.passed).toBe(false);
+  });
+
+  it('should handle array context', async () => {
+    const { evaluateRagAnswer } = await import('../lib/rag_evaluator.js');
+    const result = evaluateRagAnswer(
+      'What is binary search?',
+      'Binary search is an algorithm.',
+      ['Binary search is an algorithm that finds the position of a target value.', 'It works on sorted arrays.']
+    );
+    expect(result.relevancy).toBeGreaterThan(0);
   });
 });
