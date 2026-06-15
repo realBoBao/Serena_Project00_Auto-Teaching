@@ -961,39 +961,66 @@ async function run(topic = null, isForce = false){
         if (papers.length === 0) errorSources.push('arXiv');
         if (facebookPosts.length === 0) errorSources.push('Facebook/Tavily');
 
-        // ── Fallback: Tạo report từ knowledge base khi search API fail ──
-        console.log('[Pipeline] All search APIs failed — generating report from knowledge base...');
+        // ── Fallback 1: Lấy sources cũ từ database (oldest → newest) ──
+        console.log('[Pipeline] Search APIs failed — fetching cached sources from database...');
         try {
-          const { ask: llmAsk } = await import('./lib/llm.js');
-          const fallbackReport = await llmAsk(
-            `Hãy tạo một báo tổng hợp về chủ đề "${chosenTopic}" dựa trên kiến thức của bạn. Bao gồm: 1) Tổng quan chủ đề, 2) Các khái niệm quan trọng, 3) Best practices, 4) Tài liệu tham khảo gợi ý. Trả lời bằng tiếng Việt, định dạng Markdown.`,
-            { maxTokens: 2000, temperature: 0.3 }
-          );
+          const { getSourcesByDate } = await import('./lib/vector_store.js');
+          const cachedSources = await getSourcesByDate('academic', 10, 'asc');
 
-          // Gửi webhook với fallback content
-          await sendAggregatedWebhook({
-            topic: `${chosenTopic} (Fallback — Search APIs unavailable)`,
-            results: [{
-              title: `📚 Knowledge Base Summary: ${chosenTopic}`,
-              url: '',
-              type: 'knowledge-base',
+          if (cachedSources.length > 0) {
+            console.log(`[Pipeline] Found ${cachedSources.length} cached sources (oldest → newest)`);
+            const fallbackResults = cachedSources.map(s => ({
+              title: s.project || s.doc_id || 'Cached Source',
+              url: s.url || '',
+              type: 'cached',
               score: 0.5,
-              category: 'Backend',
-            }],
-            bullets: fallbackReport.answer?.slice(0, 500) || 'Generated from knowledge base',
-            isError: false,
-          });
-          console.log('[Webhook] ✓ Sent fallback report from knowledge base');
-        } catch (llmErr) {
-          // Nếu cả LLM fail → gửi thông báo lỗi
-          await sendAggregatedWebhook({
-            topic: chosenTopic,
-            results: [],
-            bullets: '',
-            isError: true,
-            errorMessage: `All search APIs failed (${errorSources.join(', ')}). LLM fallback also failed: ${llmErr?.message || 'unknown'}`,
-          });
-          console.log('[Webhook] ⚠️ Sent error notification — all sources and LLM failed');
+              category: s.category || 'Backend',
+            }));
+
+            await sendAggregatedWebhook({
+              topic: `${chosenTopic} (Cached — Search APIs unavailable)`,
+              results: fallbackResults,
+              bullets: `📦 ${cachedSources.length} sources từ cache (oldest → newest)`,
+              isError: false,
+            });
+            console.log('[Webhook] ✓ Sent cached sources from database');
+          } else {
+            throw new Error('No cached sources in database');
+          }
+        } catch (cacheErr) {
+          // ── Fallback 2: LLM generate từ knowledge base ──
+          console.log('[Pipeline] No cached sources — generating from knowledge base...');
+          try {
+            const { ask: llmAsk } = await import('./lib/llm.js');
+            const fallbackReport = await llmAsk(
+              `Hãy tạo một báo tổng hợp về chủ đề "${chosenTopic}" dựa trên kiến thức của bạn. Bao gồm: 1) Tổng quan chủ đề, 2) Các khái niệm quan trọng, 3) Best practices, 4) Tài liệu tham khảo gợi ý. Trả lời bằng tiếng Việt, định dạng Markdown.`,
+              { maxTokens: 2000, temperature: 0.3 }
+            );
+
+            await sendAggregatedWebhook({
+              topic: `${chosenTopic} (Fallback — Search APIs unavailable)`,
+              results: [{
+                title: `📚 Knowledge Base Summary: ${chosenTopic}`,
+                url: '',
+                type: 'knowledge-base',
+                score: 0.5,
+                category: 'Backend',
+              }],
+              bullets: fallbackReport.answer?.slice(0, 500) || 'Generated from knowledge base',
+              isError: false,
+            });
+            console.log('[Webhook] ✓ Sent fallback report from knowledge base');
+          } catch (llmErr) {
+            // ── Fallback 3: Error notification ──
+            await sendAggregatedWebhook({
+              topic: chosenTopic,
+              results: [],
+              bullets: '',
+              isError: true,
+              errorMessage: `All search APIs failed (${errorSources.join(', ')}). Cache: ${cacheErr.message}. LLM: ${llmErr?.message || 'unknown'}`,
+            });
+            console.log('[Webhook] ⚠️ Sent error notification — all fallbacks failed');
+          }
         }
       }
     } catch (err) {
