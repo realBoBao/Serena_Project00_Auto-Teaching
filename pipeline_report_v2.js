@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { isProcessed, markProcessed } from './lib/db.js';
+import { isProcessed, markProcessed, checkSourceStatus } from './lib/db.js';
 import { addMemory, archiveOldMemories } from './lib/memory_manager.js';
 import { sendDiscordNotification } from './notify_discord.js';
 import { chunkText } from './lib/chunking.js';
@@ -608,11 +608,16 @@ async function run(topic = null, isForce = false){
   for(const r of repos){
     const owner = r.owner.login; const name = r.name;
     const id = `repo::${r.full_name}`;
-    if(!isForce && await isProcessed(id)){
-      console.log('Skipped already processed repo', r.full_name);
+    const hash = String(r.stargazers_count);
+    const { exists, needsUpdate } = await checkSourceStatus(id, hash);
+    if(!isForce && exists && !needsUpdate){
+      console.log('Skipped unchanged repo', r.full_name, '⭐', r.stargazers_count);
       continue;
     }
-    if(isForce && await isProcessed(id)){
+    if(exists && needsUpdate){
+      console.log('Updating repo', r.full_name, '⭐', r.stargazers_count, '(stars changed)');
+    }
+    if(isForce && exists){
       console.log('Force re-analyzing processed repo', r.full_name);
     }
 
@@ -655,11 +660,16 @@ async function run(topic = null, isForce = false){
 
   for(const video of videos){
     const id = `video::${video.videoId}`;
-    if(!isForce && await isProcessed(id)){
-      console.log('Skipped already processed video', video.title);
+    const hash = String(video.viewCount);
+    const { exists, needsUpdate } = await checkSourceStatus(id, hash);
+    if(!isForce && exists && !needsUpdate){
+      console.log('Skipped unchanged video', video.title, '👁', video.viewCount);
       continue;
     }
-    if(isForce && await isProcessed(id)){
+    if(exists && needsUpdate){
+      console.log('Updating video', video.title, '👁', video.viewCount, '(views changed)');
+    }
+    if(isForce && exists){
       console.log('Force re-analyzing processed video', video.title);
     }
 
@@ -701,12 +711,16 @@ async function run(topic = null, isForce = false){
 
   for(const post of reddits){
     const id = `reddit::${post.id}`;
-    if(!isForce && await isProcessed(id)){
-      console.log('Skipped already processed Reddit post', post.title);
+    const hash = String(post.score || 0);
+    const { exists, needsUpdate } = await checkSourceStatus(id, hash);
+    if(!isForce && exists && !needsUpdate){
+      console.log('Skipped unchanged Reddit post', post.title);
       continue;
     }
-
-    if(isForce && await isProcessed(id)){
+    if(exists && needsUpdate){
+      console.log('Updating Reddit post', post.title, '(score changed)');
+    }
+    if(isForce && exists){
       console.log('Force re-analyzing processed Reddit post', post.title);
     }
 
@@ -760,9 +774,14 @@ async function run(topic = null, isForce = false){
 
   for(const question of stackoverflow){
     const id = `stackoverflow::${question.question_id}`;
-    if(!isForce && await isProcessed(id)){
-      console.log('Skipped already processed StackOverflow question', question.title);
+    const hash = String(question.score || 0);
+    const { exists, needsUpdate } = await checkSourceStatus(id, hash);
+    if(!isForce && exists && !needsUpdate){
+      console.log('Skipped unchanged StackOverflow question', question.title);
       continue;
+    }
+    if(exists && needsUpdate){
+      console.log('Updating StackOverflow question', question.title, '(score changed)');
     }
 
     const soGate = await preCheckRelevanceWithLLM(question.title, question.body || '');
@@ -804,9 +823,14 @@ async function run(topic = null, isForce = false){
 
   for(const story of hackerNews){
     const id = `hackernews::${story.objectID}`;
-    if(!isForce && await isProcessed(id)){
-      console.log('Skipped already processed Hacker News story', story.title);
+    const hash = String(story.points || 0);
+    const { exists, needsUpdate } = await checkSourceStatus(id, hash);
+    if(!isForce && exists && !needsUpdate){
+      console.log('Skipped unchanged Hacker News story', story.title);
       continue;
+    }
+    if(exists && needsUpdate){
+      console.log('Updating Hacker News story', story.title, '(points changed)');
     }
 
     const hnGate = await preCheckRelevanceWithLLM(story.title, story.story_text || '');
@@ -859,9 +883,14 @@ async function run(topic = null, isForce = false){
   // ── Facebook / Web Social Posts ──
   for(const post of facebookPosts){
     const id = `facebook::${post.id.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 80)}`;
-    if(!isForce && await isProcessed(id)){
-      console.log('Skipped already processed Facebook post', post.title);
+    const hash = post.snippet?.slice(0, 100) || '';
+    const { exists, needsUpdate } = await checkSourceStatus(id, hash);
+    if(!isForce && exists && !needsUpdate){
+      console.log('Skipped unchanged Facebook post', post.title);
       continue;
+    }
+    if(exists && needsUpdate){
+      console.log('Updating Facebook post', post.title);
     }
 
     console.log('Analyzing Facebook/web post', post.title);
@@ -894,9 +923,14 @@ async function run(topic = null, isForce = false){
 
   for(const paper of papers){
     const id = `arxiv::${paper.id}`;
-    if(!isForce && await isProcessed(id)){
-      console.log('Skipped already processed arXiv paper', paper.id);
+    const hash = paper.published || '';
+    const { exists, needsUpdate } = await checkSourceStatus(id, hash);
+    if(!isForce && exists && !needsUpdate){
+      console.log('Skipped unchanged arXiv paper', paper.id);
       continue;
+    }
+    if(exists && needsUpdate){
+      console.log('Updating arXiv paper', paper.id);
     }
 
     console.log('Analyzing arXiv paper', paper.title);
