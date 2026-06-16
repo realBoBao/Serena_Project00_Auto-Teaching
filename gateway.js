@@ -35,7 +35,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const SERVICES = [
   { name: 'discord',  script: './discord_bot.js',       restart: true,  env: { DISCORD_BOT_TOKEN: process.env.DISCORD_BOT_TOKEN || '', DISCORD_COMMAND_PREFIX: process.env.DISCORD_COMMAND_PREFIX || '!ask ' } },
   { name: 'restApi',  script: './rest_api_server.js',   restart: true,  env: { REST_API_PORT: '3005', REST_API_KEY: process.env.REST_API_KEY || '' }, healthUrl: 'http://localhost:3005/health' },
-  { name: 'scheduler',script: './scheduler.js',         restart: true,  env: { GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '' } },
+  { name: 'scheduler',script: './scheduler.js',         restart: true,  env: { ...(process.env.GEMINI_API_KEY ? { GEMINI_API_KEY: process.env.GEMINI_API_KEY } : {}), ...(process.env.GOOGLE_API_KEY ? { GOOGLE_API_KEY: process.env.GOOGLE_API_KEY } : {}) } },
   { name: 'watcher',  script: './watch_library.js',     restart: true,  env: {} },
 ];
 
