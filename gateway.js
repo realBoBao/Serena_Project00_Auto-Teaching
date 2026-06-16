@@ -29,6 +29,8 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { getSystemHealth, getPrometheusMetrics, checkAndAlert } from './lib/observability.js';
 import { info as logInfo, warn as logWarn, error as logError } from './lib/structured_logger.js';
+import { startOutboxWorker, stopOutboxWorker } from './lib/outbox_worker.js';
+import { cleanup as cleanupOutbox } from './lib/outbox.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -365,6 +367,7 @@ function startHealthCheck() {
 
 function shutdown(signal) {
   logInfo('Gateway', 'shutdown signal received', { signal });
+  stopOutboxWorker();
   for (const svc of SERVICES) {
     if (serviceState[svc.name].process) serviceState[svc.name].process.kill('SIGTERM');
   }
@@ -382,6 +385,12 @@ async function main() {
 
   logInfo('Gateway', 'starting services', { count: SERVICES.length });
   for (const svc of SERVICES) startService(svc);
+
+  // Start outbox worker for guaranteed message delivery
+  startOutboxWorker();
+
+  // Cleanup old outbox messages every hour
+  setInterval(() => { cleanupOutbox().catch(() => {}); }, 3600000);
 
   setTimeout(() => {
     const mem = process.memoryUsage();

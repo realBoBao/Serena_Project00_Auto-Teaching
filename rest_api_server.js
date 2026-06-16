@@ -698,6 +698,17 @@ route('POST', '/scheduler/:job', async (req, res, params) => {
   }
 }, { public: true });
 
+// ── Outbox Stats (Tier 3) ──
+route('GET', '/api/outbox/stats', async (req, res) => {
+  try {
+    const { getStats } = await import('./lib/outbox.js');
+    const stats = await getStats();
+    json(res, { ok: true, ...stats });
+  } catch (err) {
+    json(res, { error: err.message }, 500);
+  }
+}, { public: true });
+
 // ── 404 Handler ──
 function notFound(res) {
   json(res, { error: 'Not found' }, 404);
