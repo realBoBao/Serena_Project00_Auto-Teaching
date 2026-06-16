@@ -475,6 +475,19 @@ if (!IS_CLOUD_RUN) {
     }
   }, { timezone: 'America/Los_Angeles' });
 
+  // ── Tier 2: Daily RSS Fetch — 6:00 AM PDT ──
+  const RSS_CRON = '0 6 * * *';
+  const rssTask = cron.schedule(RSS_CRON, async () => {
+    logger.info('[scheduler] Daily RSS fetch triggered');
+    try {
+      const { runDailyRssFetch } = await import('./cron/daily_rss_fetch.js');
+      const result = await runDailyRssFetch();
+      logger.info(`[scheduler] Daily RSS: ${result.articles} articles, ${result.flashcards} flashcards`);
+    } catch (err) {
+      logger.error('[scheduler] Daily RSS fetch error:', err?.message || err);
+    }
+  }, { timezone: 'America/Los_Angeles' });
+
   // ── Start all cron jobs ──
   task.start();
   memoryTask.start();
@@ -482,6 +495,7 @@ if (!IS_CLOUD_RUN) {
   evoTask.start();
   graphTask.start();
   suggestionTask.start();
+  rssTask.start();
 
   logger.info('[Scheduler] All node-cron jobs started');
 } // end if (!IS_CLOUD_RUN)

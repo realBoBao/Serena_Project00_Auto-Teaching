@@ -16,6 +16,7 @@
 import { invokeLlm } from '../lib/llm.js';
 import { HumanMessage } from '@langchain/core/messages';
 import { getLogger } from '../lib/logger.js';
+import path from 'path';
 
 const logger = getLogger('RecapAgent');
 
@@ -115,4 +116,26 @@ export async function summarizeTopic(topic) {
   }
 }
 
-export default { generateRecap, summarizeTopic };
+
+/**
+ * Generate a recap video from text summary
+ * Uses edge-tts + moviepy (Python script)
+ */
+export async function generateRecapVideo(text, outputPath = 'recap.mp4') {
+  const { execSync } = require('child_process');
+  try {
+    const scriptPath = path.join(process.cwd(), 'scripts', 'generate_recap_video.py');
+    const safeText = text.replace(/"/g, '\"').replace(/\n/g, ' ');
+    execSync('python "' + scriptPath + '" --text "' + safeText.slice(0, 2000) + '" --output "' + outputPath + '"', {
+      timeout: 120000,
+      stdio: 'pipe',
+    });
+    logger.info('[RecapVideo] Generated:', outputPath);
+    return { success: true, path: outputPath };
+  } catch (err) {
+    logger.error('[RecapVideo] Failed:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+export default { generateRecap, summarizeTopic, generateRecapVideo };
