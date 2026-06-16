@@ -277,7 +277,9 @@ async function saveLastRun(type, status = 'done') {
 }
 
 // Kiểm tra xem job có đang chạy không — dùng readJsonSafe async
-async function isJobRunning(type) { try { const lastRuns = await readJsonSafe(CATCH_UP_FILE, {}); return lastRuns[type]?.status === 'running'; } catch { return false; } }');
+async function isJobRunning(type) {
+  try {
+    const lastRuns = await readJsonSafe(CATCH_UP_FILE, {});
     return lastRuns[type]?.status === 'running';
   } catch {
     return false;
@@ -315,7 +317,10 @@ if (RUN_ON_START) {
   }, 30000);
 }
 
-── Dọn file .tmp còn sót từ crash trước ──\ncleanupStaleTempFiles('.').catch(() => {});\n\n// ── Only schedule cron jobs when NOT on Cloud Run ──
+// ── Dọn file .tmp còn sót từ crash trước ──
+cleanupStaleTempFiles('.').catch(() => {});
+
+// ── Only schedule cron jobs when NOT on Cloud Run ──
 // On Cloud Run, use Google Cloud Scheduler → HTTP POST → /scheduler/:job
 let task, memoryTask, backupTask;
 
