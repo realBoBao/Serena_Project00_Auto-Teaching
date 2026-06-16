@@ -698,6 +698,23 @@ route('POST', '/scheduler/:job', async (req, res, params) => {
   }
 }, { public: true });
 
+// ── Shadow Launching Stats (Tier 2) ──
+route('GET', '/api/shadow/stats', (req, res) => {
+  try {
+    const { routerAgent } = await import('./agents/RouterAgent.js');
+    json(res, {
+      ok: true,
+      shadow_mode: routerAgent._shadowEnabled,
+      comparisons: routerAgent._stats.shadowComparisons,
+      agent_calls: routerAgent._stats.agentCalls,
+      total_requests: routerAgent._stats.totalRequests,
+      errors: routerAgent._stats.errors,
+    });
+  } catch (err) {
+    json(res, { error: err.message }, 500);
+  }
+}, { public: true });
+
 // ── Outbox Stats (Tier 3) ──
 route('GET', '/api/outbox/stats', async (req, res) => {
   try {

@@ -12,6 +12,7 @@
 
 import { getLogger } from '../lib/logger.js';
 import { classifyIntentLocal, classifyIntentLlm } from '../lib/edge_router.js';
+import { info, warn } from '../lib/structured_logger.js';
 
 const logger = getLogger('RouterAgent');
 
@@ -102,6 +103,26 @@ const AGENT_REGISTRY = {
     enabled: true,
     cost: 'low',
   },
+
+  // ── Shadow Agents (Tier 2: Dark Traffic) ──
+  // Shadow agents chạy song song với primary khi SHADOW_MODE=true.
+  // Chúng KHÔNG nhận traffic chính — chỉ fork từ primary.
+  rag_v2: {
+    name: 'RagAgent (Shadow)',
+    description: 'RAG v2 — shadow copy for dark traffic comparison',
+    import: () => import('./RagAgent.js'),  // Cùng module, khác prompt/params
+    enabled: false,  // Bật khi muốn test
+    cost: 'medium',
+    isShadow: true,
+  },
+  coder_v2: {
+    name: 'CoderAgent (Shadow)',
+    description: 'Coder v2 — shadow copy for dark traffic comparison',
+    import: () => import('./CoderAgent.js'),
+    enabled: false,
+    cost: 'high',
+    isShadow: true,
+  },
 };
 
 // ── Intent → Agent Mapping ──
@@ -122,6 +143,13 @@ const INTENT_AGENT_MAP = {
   ANALYZE: ['analysis'],
 };
 
+// ── Shadow Launching Registry ──
+// Map: primary agent → shadow agent key (chạy song song khi SHADOW_MODE=true)
+const SHADOW_MAP = {
+  rag: 'rag_v2',    // RagAgent v1 (primary) vs v2 (shadow)
+  coder: 'coder_v2',
+};
+
 class RouterAgent {
   constructor() {
     this._agentCache = new Map();  // Lazy-loaded agent modules
@@ -129,7 +157,12 @@ class RouterAgent {
       totalRequests: 0,
       agentCalls: {},
       errors: 0,
+      shadowComparisons: 0,
     };
+    this._shadowEnabled = process.env.SHADOW_MODE === 'true';
+    if (this._shadowEnabled) {
+      info('RouterAgent', 'shadow launching enabled');
+    }
   }
 
   // ── State Toggle API (cho Admin Dashboard) ──
@@ -213,11 +246,59 @@ class RouterAgent {
       // Update stats
       this._stats.agentCalls[agentKey] = (this._stats.agentCalls[agentKey] || 0) + 1;
 
+      // ── Shadow Launching (Tier 2) ──
+      // Nếu SHADOW_MODE=true và có shadow agent cho primary → fork background.
+      // Shadow chạy async, không block response. Kết quả log vào structured log.
+      if (this._shadowEnabled) {
+        const shadowKey = SHADOW_MAP[agentKey];
+        if (shadowKey && AGENT_REGISTRY[shadowKey]?.enabled) {
+          this._runShadow(shadowKey, agentKey, intent, context, result).catch(() => {});
+        }
+      }
+
       return { result, agent: agentKey, cached: this._agentCache.has(agentKey) };
     } catch (err) {
       this._stats.errors++;
       logger.error(`Agent ${agentKey} failed: ${err.message}`);
       return { result: null, agent: agentKey, error: err.message };
+    }
+  }
+
+  /**
+   * Chạy shadow agent song song (fire-and-forget).
+   * So sánh kết quả primary vs shadow và log structured.
+   */
+  async _runShadow(shadowKey, primaryKey, intent, context, primaryResult) {
+    const startTime = Date.now();
+    try {
+      const shadowModule = await this._loadAgent(shadowKey);
+      const shadowResult = await this._dispatch(shadowKey, shadowModule, intent, context);
+      const latencyMs = Date.now() - startTime;
+
+      // So sánh đơn giản: length diff + content diff indicator
+      const primaryText = JSON.stringify(primaryResult ?? '');
+      const shadowText = JSON.stringify(shadowResult ?? '');
+      const lengthDiff = Math.abs(primaryText.length - shadowText.length);
+      const identical = primaryText === shadowText;
+
+      this._stats.shadowComparisons++;
+
+      info('RouterAgent', 'shadow comparison', {
+        intent,
+        primary: primaryKey,
+        shadow: shadowKey,
+        identical,
+        length_diff: lengthDiff,
+        primary_length: primaryText.length,
+        shadow_length: shadowText.length,
+        shadow_latency_ms: latencyMs,
+      });
+    } catch (err) {
+      warn('RouterAgent', 'shadow agent failed', {
+        shadow: shadowKey,
+        intent,
+        error: err.message,
+      });
     }
   }
 
