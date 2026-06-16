@@ -9,6 +9,7 @@ import { ask as llmAsk } from '../lib/llm.js';
 import { getLogger } from '../lib/logger.js';
 import { HumanMessage } from '@langchain/core/messages';
 import { searchResources, getByCategory } from '../lib/devops_db.js';
+import { generateRoadmap, saveRoadmap, getRoadmap, listRoadmaps } from '../lib/roadmap_engine.js';
 
 const logger = getLogger('PlannerAgent');
 
@@ -137,4 +138,37 @@ export async function suggestFreeResources(requirement) {
   };
 }
 
-export default { createVisionFirstPlan, createPlan, suggestFreeResources };
+/**
+ * Tier 1: Dynamic Ontology Generation — Create learning path for ANY topic.
+ * Uses LLM to generate DAG, saves to SQLite, returns formatted roadmap.
+ *
+ * @param {string} topic — e.g. "Docker", "Quantum Computing", "Web3"
+ * @param {string} [goal] — Optional learning goal
+ * @returns {Promise<{roadmap: object, message: string}>}
+ */
+export async function createLearningPath(topic, goal = '') {
+  logger.info(`[PlannerAgent] Creating learning path for: ${topic}`);
+
+  // Generate DAG via LLM
+  const dag = await generateRoadmap(topic, goal);
+  if (!dag.nodes.length) {
+    return { roadmap: dag, message: `❌ Không thể tạo lộ trình cho "${topic}". Thử lại với từ khóa cụ thể hơn.` };
+  }
+
+  // Save to SQLite
+  const roadmapId = await saveRoadmap(topic, dag);
+
+  // Format for display
+  const lines = dag.nodes
+    .sort((a, b) => (a.priority || 0) - (b.priority || 0))
+    .map((n, i) => `${i + 1}. **${n.label}** — ${n.description || 'Không có mô tả'}`);
+
+  const prereqCount = dag.edges?.length || 0;
+
+  return {
+    roadmap: { id: roadmapId, topic, nodes: dag.nodes, edges: dag.edges },
+    message: `🗺️ **Lộ trình học tập: ${topic}**\n\n${lines.join('\n')}\n\n📊 ${dag.nodes.length} bước | ${prereqCount} mối quan hệ tiên quyết\n\nGõ \`!learn ${topic}\` để bắt đầu học từng bước!`,
+  };
+}
+
+export default { createVisionFirstPlan, createPlan, suggestFreeResources, createLearningPath };
