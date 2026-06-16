@@ -415,6 +415,8 @@ client.on(Events.MessageCreate, async (message) => {
   try {
     if (message.author.bot) return;
 
+    const content = message.content;
+
     // ── Tier 1: Idempotency check — chặn duplicate requests ──
     try {
       const { createKey, check, markProcessing, markDone } = await import('./lib/idempotency.js');
