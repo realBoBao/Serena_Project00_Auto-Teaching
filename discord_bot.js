@@ -420,7 +420,7 @@ client.on(Events.MessageCreate, async (message) => {
 
     // ── Tier 1: Idempotency check — chặn duplicate requests ──
     // Bypass cho lệnh nhanh (không cần cache vì chạy < 1s)
-    const isFastCommand = /^(help|voice|plugins|plugin unload|ping|status|uptime)/i.test(content);
+    const isFastCommand = /^!(help|voice|plugins|plugin unload|ping|status|uptime)(\s|$)/i.test(content);
     try {
       if (!isFastCommand) {
         const { createKey, check, markProcessing, markDone } = await import('./lib/idempotency.js');
@@ -493,6 +493,9 @@ client.on(Events.MessageCreate, async (message) => {
 
     if (content === '!voice leave' || content === '!leave') {
       try {
+        if (!message.guild) {
+          return message.reply('❌ Lệnh này chỉ dùng trong server, không dùng được trong DM.');
+        }
         const { leaveChannel } = await import('./agents/VoiceChannel.js');
         leaveChannel(message.guild.id);
         await message.reply('👋 Đã rời voice channel.');
@@ -522,6 +525,62 @@ client.on(Events.MessageCreate, async (message) => {
         await message.reply('❌ Lỗi: ' + err.message);
       }
       return;
+    }
+
+    // ── !help command (moved up to avoid intent classification blocking) ──
+    if (content === '!help' || content === '!help ') {
+      return message.channel.send({
+        content:
+          '📋 **Danh sách lệnh AI Brain v7.0:**\n\n' +
+          '**🔍 Hỏi đáp & Tìm kiếm:**\n' +
+          '`!ask <câu hỏi>` — Hỏi AI (RAG + Web Search)\n' +
+          '`!ask <câu hỏi> --deep` — Tìm kiếm sâu\n\n' +
+          '**💻 Code & Thuật toán:**\n' +
+          '`!run <code>` — Chạy code trong Sandbox\n' +
+          '`!code <bài toán>` — Viết + chạy code\n' +
+          '`!debate <bài toán>` — Tranh luận đa tác nhân\n' +
+          '`!cli <tool>` — Tìm lệnh CLI (0% hallucination)\n\n' +
+          '**📚 Học tập & Ôn tập:**\n' +
+          '`!quiz` — Ôn tập flashcard (FSRS)\n' +
+          '`!quiz stats` — Xem thống kê\n' +
+          '`!answer <id> <đáp án>` — Trả lời flashcard\n' +
+          '`!learn <url>` — Học từ URL/PDF\n' +
+          '`!path <topic>` — Tạo lộ trình học\n' +
+          '`!cs <subject>` — Học CS theo chủ đề\n' +
+          '`!cs list` — Xem danh sách môn CS\n' +
+          '`!gaps` — Xem lỗ hổng kiến thức\n' +
+          '`!resources <keyword>` — Tìm free DevOps resources\n\n' +
+          '**🔍 Phân tích & Kiểm tra:**\n' +
+          '`!analyze <code>` — Phân tích code\n' +
+          '`!audit <code>` — Quét bảo mật\n' +
+          '`!profile <code>` — Phân tích performance\n' +
+          '`!logs <text>` — Phân tích logs\n\n' +
+          '**⚙️ Tuỳ chọn:**\n' +
+          '`!profile` — Xem hồ sơ học tập\n' +
+          '`!preferences show` — Xem tuỳ chọn\n' +
+          '`!preferences model openrouter|gemini|auto` — Chọn model\n\n' +
+          '**🎨 Sáng tạo:**\n' +
+          '`!animate <mô tả>` — Tạo video animation\n\n' +
+          '**👁️ Đa giác quan:**\n' +
+          '`!vision` + ảnh — Phân tích ảnh\n' +
+          '`!voice` + audio — Transcribe giọng nói\n\n' +
+          '**🧠 Nâng cao:**\n' +
+          '`!review` — Shadow Review\n' +
+          '`!incident` — Chaos Engineering\n' +
+          '`!memory <nội dung>` — Lưu trí nhớ\n' +
+          '`!f1stats` — F1 Score Dashboard\n\n' +
+          '**🎙️ Voice:**\n' +
+          '`!voice join` — Tham gia voice\n' +
+          '`!voice leave` / `!leave` — Rời voice\n' +
+          '`!voice study` — Chế độ học\n' +
+          '`!voice stop` — Tắt chế độ học\n\n' +
+          '**⚙️ Hệ thống:**\n' +
+          '`!plugins` — Xem plugins\n' +
+          '`!plugin unload <name>` — Unload plugin\n' +
+          '`!help` — Xem danh sách lệnh\n\n' +
+          '**🤖 Serena** — AI Robot Girl Companion | MIT License',
+        allowedMentions: { parse: [], repliedUser: false },
+      });
     }
 
     // ── 0. Socratic Mode: Kiểm tra session đang active ──
@@ -577,69 +636,6 @@ client.on(Events.MessageCreate, async (message) => {
           '• Dùng `!ask` để tôi tìm kiếm trên web\n' +
           '• Dùng `!help` để xem danh sách lệnh\n' +
           '• Dùng `!path <topic>` để xem lộ trình học',
-        allowedMentions: { parse: [], repliedUser: false },
-      });
-    }
-
-    // ── !help command ──
-    if (message.content === '!help' || message.content === '!help ') {
-      return message.channel.send({
-        content:
-          '📋 **Danh sách lệnh AI Brain v6.0:**\n\n' +
-          '**🔍 Hỏi đáp & Tìm kiếm:**\n' +
-          '`!ask <câu hỏi>` — Hỏi AI (RAG + Web Search)\n' +
-          '`!ask <câu hỏi> --deep` — Tìm kiếm sâu (nhiều nguồn hơn)\n\n' +
-          '**💻 Code & Thuật toán:**\n' +
-          '`!run <code>` — Chạy code trong Sandbox\n' +
-          '`!code <bài toán>` — Viết + chạy code tự động\n' +
-          '`!debate <bài toán>` — Tranh luận đa tác nhân\n' +
-          '`!debate <bài toán> --quick` — Tranh luận nhanh\n\n' +
-          '**📚 Học tập & Ôn tập:**\n' +
-          '`!quiz` — Ôn tập flashcard (FSRS spaced repetition)\n' +
-          '`!quiz stats` — Xem thống kê\n' +
-          '`!answer <id> <đáp án>` — Trả lời flashcard\n' +
-          '`!learn <url>` — Học từ URL/PDF\n' +
-          '`!history <topic>` — Xem facts gần đây từ Knowledge Graph\n' +
-          '`!whenwas <topic> [YYYY-MM-DD]` — Query KG tại thời điểm cụ thể\n\n' +
-          '**🔍 Phân tích & Kiểm tra:**\n' +
-          '`!analyze <code>` — Phân tích chất lượng code\n' +
-          '`!audit <code>` — Quét bảo mật code\n' +
-          '`!profile <code>` — Phân tích performance\n' +
-          '`!logs <text>` — Phân tích logs\n\n' +
-          '**⚙️ Tuỳ chọn & Hồ sơ:**\n' +
-          '`!profile` — Xem hồ sơ học tập cá nhân\n' +
-          '`!preferences show` — Xem tuỳ chọn hiện tại\n' +
-          '`!preferences model openrouter|gemini|auto` — Chọn model ưu tiên\n' +
-          '`!preferences sources youtube,github` — Chọn nguồn ưu tiên\n' +
-          '`!preferences learning on|off` — Bật/tắt tự học\n' +
-          '`!prefer example_first|theory_first|code_heavy` — Chọn phong cách học\n\n' +
-          '**🎨 Sáng tạo:**\n' +
-          '`!animate <mô tả>` — Tạo video animation\n' +
-          '`!animate <mô tả> --async` — Render nền\n\n' +
-          '**👁️ Đa giác quan:**\n' +
-          '`!vision` + ảnh — Phân tích ảnh\n' +
-          '`!voice` + audio — Transcribe giọng nói\n\n' +
-          '**🧠 Nâng cao:**\n' +
-          '`!plan` + ảnh — Lập kế hoạch từ ảnh\n' +
-          '`!review` — Shadow Review (ôn code)\n' +
-          '`!incident` — Chaos Engineering (sự cố)\n' +
-          '`!memory <nội dung>` — Lưu trí nhớ\n' +
-          '`!f1stats` — Xem F1 Score Dashboard\n' +
-          '`!path <topic>` — Tạo lộ trình học từ Knowledge Graph\n\n' +
-          '**🎙️ Voice & VTuber:**\n' +
-          '`!voice` + audio — Transcribe giọng nói (whisper.cpp)\n' +
-          '`!voice join` — Tham gia voice channel (nghe & trả lời bằng giọng nói)\n' +
-          '`!voice leave` — Rời voice channel\n' +
-          '`!voice study` — Chế độ học (im lặng, chỉ nghe wake word)\n' +
-          '`!voice stop` — Tắt chế độ học\n' +
-          'Truy cập `/pngtuber` trên tablet/phone để xem avatar\n\n' +
-          '**⚙️ Hệ thống:**\n' +
-          '`!schedule` — Đồng bộ thời khóa biểu\n' +
-          '`!plugins` — Xem danh sách plugins\n' +
-          '`!plugin unload <name>` — Unload plugin (admin)\n' +
-          '`!help` — Hiện danh sách lệnh này\n\n' +
-          '**📊 Chất lượng:** `!f1stats` | **🔒 Bảo mật:** `!audit` | **🧠 Học tập:** `!quiz` `!review` `!learn`\n\n' +
-          '**🤖 Serena** — AI Robot Girl Companion | Open Source | MIT License',
         allowedMentions: { parse: [], repliedUser: false },
       });
     }
@@ -2229,6 +2225,80 @@ client.on(Events.MessageCreate, async (message) => {
           content: `❌ Lỗi tạo lộ trình: ${err?.message || err}`,
           allowedMentions: { parse: [] },
         });
+      }
+      return;
+    }
+
+    // ── !cli command: JIT CLI Tool Finder ──
+    if (message.content.startsWith('!cli ')) {
+      const query = message.content.slice(5).trim();
+      if (!query) {
+        return message.reply('🔧 **CLI Tool Finder**\n\nDùng: `!cli <tool>` — Tìm lệnh CLI\nVí dụ: `!cli docker`, `!cli nginx`, `!cli ssh`\n\nTìm lệnh chính xác từ the-book-of-secret-knowledge (0% hallucination).');
+      }
+      try {
+        const { findCliTool } = await import('./agents/CoderAgent.js');
+        const result = await findCliTool(query);
+        await message.reply({ content: result.message, allowedMentions: { parse: [], repliedUser: false } });
+      } catch (err) {
+        await message.reply(`❌ Lỗi: ${err?.message || err}`);
+      }
+      return;
+    }
+
+    // ── !cs command: Virtual CS Curriculum ──
+    if (message.content.startsWith('!cs ')) {
+      const args = message.content.slice(4).trim();
+      if (!args || args === 'list') {
+        const { listCsSubjects } = await import('./agents/SocraticAgent.js');
+        const subjects = await listCsSubjects();
+        const lines = subjects.map(s => `• **${s.name}** (${s.topicCount} topics) — \`!cs ${s.id}\``);
+        return message.reply('📚 **CS Curriculum** (TeachYourselfCS + ossu)\n\n' + lines.join('\n') + '\n\nDùng `!cs <subject>` để bắt đầu học.');
+      }
+      try {
+        const { getCsSocraticPrompt } = await import('./agents/SocraticAgent.js');
+        const result = await getCsSocraticPrompt(args);
+        if (!result) {
+          return message.reply(`❌ Không tìm thấy môn "${args}". Dùng \`!cs list\` để xem danh sách.`);
+        }
+        await message.reply({ content: result.prompt, allowedMentions: { parse: [], repliedUser: false } });
+      } catch (err) {
+        await message.reply(`❌ Lỗi: ${err?.message || err}`);
+      }
+      return;
+    }
+
+    // ── !gaps command: Weighted Gap Analysis ──
+    if (message.content === '!gaps' || message.content === '!gap') {
+      try {
+        const { getTopGaps, generateGapAdvice } = await import('./lib/gap_router.js');
+        const gaps = await getTopGaps(5);
+        if (gaps.length === 0) {
+          return message.reply('✅ **Không có lỗ hổng kiến thức nào!**\n\nBạn đang học rất đều. Tiếp tục ôn tập để giữ streak!');
+        }
+        const advice = await generateGapAdvice();
+        const lines = gaps.map((g, i) => `${i + 1}. **${g.name}** — gap score: ${g.gap_score.toFixed(1)}`);
+        await message.reply({
+          content: `📊 **Lỗ hổng kiến thức:**\n\n${lines.join('\n')}\n\n${advice || ''}`,
+          allowedMentions: { parse: [], repliedUser: false },
+        });
+      } catch (err) {
+        await message.reply(`❌ Lỗi: ${err?.message || err}`);
+      }
+      return;
+    }
+
+    // ── !resources command: Free DevOps Resources ──
+    if (message.content.startsWith('!resources ')) {
+      const query = message.content.slice(11).trim();
+      if (!query) {
+        return message.reply('🆓 **Free DevOps Resources**\n\nDùng: `!resources <keyword>`\nVí dụ: `!resources hosting`, `!resources database`, `!resources auth`\n\nTìm free alternatives từ free-for-dev + open-source-alternatives.');
+      }
+      try {
+        const { suggestFreeResources } = await import('./agents/PlannerAgent.js');
+        const result = await suggestFreeResources(query);
+        await message.reply({ content: result.message, allowedMentions: { parse: [], repliedUser: false } });
+      } catch (err) {
+        await message.reply(`❌ Lỗi: ${err?.message || err}`);
       }
       return;
     }
