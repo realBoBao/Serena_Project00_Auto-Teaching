@@ -4,8 +4,8 @@ export default {
   transform: {},
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^node:sqlite$': '<rootDir>/lib/sqlite_shim.js',
   },
+
 
   testMatch: ['**/tests/**/*.test.js'],
   // Skip tests that need API keys in CI environment
