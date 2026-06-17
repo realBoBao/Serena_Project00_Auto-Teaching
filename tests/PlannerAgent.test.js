@@ -10,7 +10,8 @@ const mockLlmAsk = jest.fn();
 jest.unstable_mockModule('../lib/llm.js', () => ({
   __esModule: true,
   ask: mockLlmAsk,
-  default: { ask: mockLlmAsk },
+  invokeLlm: jest.fn().mockResolvedValue('{"goal":"test","steps":[]}'),
+  default: { ask: mockLlmAsk, invokeLlm: jest.fn() },
 }));
 
 // ── Dynamic import after mock setup ──
