@@ -2,7 +2,6 @@ import { describe, it, expect } from '@jest/globals';
 import { generateFlashcardsFromText, extractFlashcardsFallback } from '../lib/flashcard_generator.js';
 
 describe('Flashcard Generator', () => {
-  describe('extractFlashcardsFallback', () => {
     it('should extract flashcards from text without LLM', () => {
       const text = 'RAG stands for Retrieval-Augmented Generation. It combines search with LLM generation. The system retrieves relevant documents first.';
       const cards = extractFlashcardsFallback(text, 'test-source', 'AI');

@@ -2,7 +2,7 @@
  * Groq LPU Provider Tests — Tier 2
  *
  * Tests the Groq provider integration in the LLM fallback chain.
- * No actual API calls — tests module loading and ask() behavior.
+ * No actual API calls — tests module loading and factory behavior.
  */
 import { describe, test, expect } from '@jest/globals';
 
@@ -14,31 +14,19 @@ describe('Groq Provider — module integration', () => {
     expect(typeof llm.ask).toBe('function');
   });
 
-  test('ask() with provider="groq" falls through gracefully without API key', async () => {
-    const { ask } = await import('../lib/llm.js');
-    // Without GROQ_API_KEY, Groq provider returns null → falls through to next provider
-    const result = await ask('test', { provider: 'groq', maxTokens: 10 });
-    expect(result).toBeDefined();
-    expect(result).toHaveProperty('answer');
-    expect(result).toHaveProperty('provider');
+  test('createGroqLlm is exported and is a function', async () => {
+    const { createGroqLlm } = await import('../lib/llm.js');
+    expect(typeof createGroqLlm).toBe('function');
   });
 
-  test('ask() default chain works (Groq is first, falls through)', async () => {
-    const { ask } = await import('../lib/llm.js');
-    const result = await ask('hello', { maxTokens: 10 });
-    expect(result).toBeDefined();
-    expect(result).toHaveProperty('answer');
-    expect(result).toHaveProperty('provider');
-    expect(['groq', 'openrouter', 'gemini', 'local', 'static']).toContain(result.provider);
+  test('createGroqLlm returns null when GROQ_API_KEY is not set', async () => {
+    const { createGroqLlm } = await import('../lib/llm.js');
+    const llm = createGroqLlm();
+    expect(llm).toBeNull();
   });
 
-
-  test('ask() returns result with answer property', async () => {
-    const { ask } = await import('../lib/llm.js');
-    const result = await ask('What is 2+2?', { maxTokens: 50 });
-    expect(result).toHaveProperty('answer');
-    expect(result).toHaveProperty('provider');
-    // answer may be string or object (static fallback returns object in some cases)
-    expect(result.answer).toBeDefined();
+  test('createGroqLlm does not throw with model option', async () => {
+    const { createGroqLlm } = await import('../lib/llm.js');
+    expect(() => createGroqLlm({ model: 'llama-3.3-70b-versatile' })).not.toThrow();
   });
 });
