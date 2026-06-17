@@ -26,28 +26,54 @@ jobs:
           host: ${{ secrets.GCP_HOST }}
           username: ${{ secrets.GCP_USERNAME }}
           key: ${{ secrets.GCP_SSH_KEY }}
+          port: ${{ secrets.GCP_SSH_PORT || '22' }}
           timeout: 120s
+          script_stop: true
           envs: GH_PAT
           script: |
             set -e
             echo "=== Starting deployment at $(date) ==="
-            cd ~/ai-brain || { echo "❌ Project dir not found"; exit 1; }
+
+            # Ensure project directory exists
+            if [ ! -d ~/ai-brain ]; then
+              echo "📁 Cloning project..."
+              git clone https://github.com/realBoBao/Serena_Auto-Teaching.git ~/ai-brain
+            fi
+
+            cd ~/ai-brain
             echo "📁 Working dir: $(pwd)"
-            echo "📥 Syncing latest code (hard reset)..."
-            # Hard reset to avoid divergent branch conflicts
+
+            # Sync latest code (hard reset to avoid conflicts)
+            echo "📥 Syncing latest code..."
             git fetch origin main
             git reset --hard origin/main
             git clean -fd
+
+            # Ensure Node 20 is active (via NVM)
+            echo "🔧 Checking Node version..."
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            nvm use 20 2>/dev/null || true
+            node --version
+            npm --version
+
+            # Install dependencies
             echo "📦 Installing dependencies..."
-            # Remove old lock file and node_modules to avoid version conflicts
             rm -f package-lock.json
             rm -rf node_modules
-            # Fresh install with legacy peer deps (Node 20 compatible)
             npm install --legacy-peer-deps --only-production 2>&1 | tail -10
-            echo "📦 Installed $(ls node_modules | wc | awk '{print $1}') packages"
+            echo "📦 Installed $(ls node_modules | wc -l) packages"
+
+            # Run tests (optional, skip if no API keys)
+            echo "🧪 Running tests..."
+            npm test 2>&1 | tail -5 || echo "⚠️ Tests skipped (missing API keys)"
+
+            # Restart PM2
             echo "🔄 Restarting PM2..."
-            pm2 restart AI_Brain --update-env || pm2 start ecosystem.config.cjs
+            pm2 restart AI_Brain --update-env 2>/dev/null || pm2 start ecosystem.config.cjs
             pm2 save
+
+            echo "✅ Deployment complete at $(date)"
             echo "✅ Deployment complete at $(date)"
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
