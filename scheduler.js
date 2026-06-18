@@ -133,21 +133,46 @@ async function runMemoryConsolidation() {
 }
 
 // ── Pipeline lock để tránh chạy đồng thời ──
-let _pipelineRunning = false;
-let _lastPipelineRun = 0; // timestamp of last run
+// File-based lock để persist across PM2 restarts
+const LOCK_FILE = './.pipeline_lock.json';
 const MIN_RUN_INTERVAL = 30 * 60 * 1000; // 30 minutes minimum between runs
 
-async function runPipeline({ respectCooldown = true } = {}) {
-  // Nếu pipeline đang chạy → bỏ qua
-  if (_pipelineRunning) {
-    console.log('[scheduler] Pipeline đang chạy, bỏ qua lần này');
-    return;
+async function acquirePipelineLock() {
+  try {
+    const lock = await readJsonSafe(LOCK_FILE, { running: false, lastRun: 0, topic: '' });
+    if (lock.running) {
+      // Check if process is still alive (stale lock?)
+      if (lock.pid && process.kill(lock.pid, 0)) {
+        return false; // Process still running
+      }
+      // Stale lock — process died, take over
+      logger.warn('[scheduler] Stale lock detected, taking over');
+    }
+    // Check cooldown
+    if (Date.now() - lock.lastRun < MIN_RUN_INTERVAL) {
+      const minsAgo = Math.round((Date.now() - lock.lastRun) / 60000);
+      logger.info(`[scheduler] Pipeline ran ${minsAgo}m ago, skipping`);
+      return false;
+    }
+    // Acquire lock
+    await writeJsonAtomic(LOCK_FILE, { running: true, pid: process.pid, lastRun: Date.now(), topic: '' });
+    return true;
+  } catch {
+    return true; // If lock file is corrupt, proceed
   }
-  // Nếu chạy gần đây (< 30 phút) → bỏ qua (tránh duplicate)
-  if (respectCooldown && Date.now() - _lastPipelineRun < MIN_RUN_INTERVAL) {
-    const minsAgo = Math.round((Date.now() - _lastPipelineRun) / 60000);
-    console.log(`[scheduler] Pipeline chạy ${minsAgo} phút trước, bỏ qua`);
-    return;
+}
+
+async function releasePipelineLock(topic) {
+  await writeJsonAtomic(LOCK_FILE, { running: false, pid: null, lastRun: Date.now(), topic });
+}
+
+async function runPipeline({ respectCooldown = true } = {}) {
+  // ── File-based lock để tránh duplicate across restarts ──
+  if (respectCooldown) {
+    const acquired = await acquirePipelineLock();
+    if (!acquired) {
+      return; // Already running or cooldown active
+    }
   }
 
   const args = ['pipeline_report_v2.js'];
@@ -157,15 +182,10 @@ async function runPipeline({ respectCooldown = true } = {}) {
   console.log(`[scheduler] Starting pipeline at ${new Date().toISOString()}`);
   console.log('[scheduler] Command:', 'node', args.join(' '));
 
-  _pipelineRunning = true;
-  if (respectCooldown) {
-    _lastPipelineRun = Date.now();
-  }
-
   const child = spawn('node', args, { stdio: 'inherit' });
 
   child.on('exit', async (code, signal) => {
-    _pipelineRunning = false;
+    await releasePipelineLock(TOPIC_OVERRIDE || 'auto');
     if (signal) {
       console.log(`[scheduler] Pipeline process terminated with signal ${signal}`);
       await saveLastRun('pipeline');

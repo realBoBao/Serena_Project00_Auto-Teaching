@@ -1,7 +1,10 @@
 /**
  * camera.js — Webcam Emotion Detection for AI Brain
  * Uses face-api.js for face detection + emotion recognition
- * Falls back to canvas-based analysis if face-api fails
+ * Falls back to demo mode if camera not available
+ *
+ * Demo mode: Simulates emotion detection with random emotions
+ * Real mode: Uses webcam + face-api.js for actual emotion recognition
  */
 
 // ── State ────────────────────────────────────────────────────────────────────
@@ -9,6 +12,8 @@ let _stream = null;
 let _faceapi = null;
 let _isDetecting = false;
 let _lastEmotion = null;
+let _demoMode = false;
+let _demoInterval = null;
 
 // ── Emotion Labels (Vietnamese) ──────────────────────────────────────────────
 const EMOTION_LABELS = {
@@ -52,6 +57,50 @@ async function _loadFaceApi() {
   }
 }
 
+// ── Demo Mode ────────────────────────────────────────────────────────────────
+// Simulates emotion detection for testing without camera
+function _startDemoMode() {
+  _demoMode = true;
+  const emotions = ['happy', 'sad', 'angry', 'surprised', 'neutral', 'fearful'];
+  const labels = {
+    happy: '😊 Vui vẻ',
+    sad: '😢 Buồn',
+    angry: '😠 Tức giận',
+    surprised: '😲 Ngạc nhiên',
+    neutral: '😐 Bình thường',
+    fearful: '😰 Lo lắng',
+  };
+  const advice = {
+    happy: 'Bạn đang vui! Tuyệt vời, hãy tận hưởng cảm giác này 😊',
+    sad: 'Mình thấy bạn đang buồn. Muốn kể mình nghe không? 💙',
+    angry: 'Bạn đang tức giận. Hãy hít thở sâu 3 lần nhé. 🧘',
+    surprised: 'Ngạc nhiên à? Có gì bất ngờ không? 😲',
+    neutral: 'Bạn đang bình thường. Hôm nay thế nào? 💬',
+    fearful: 'Bạn đang lo lắng. Mình ở đây mà. Kể mình nghe đi 🤗',
+  };
+
+  const overlay = document.getElementById('emotionOverlay');
+  const icon = document.getElementById('emotionIcon');
+  const label = document.getElementById('emotionLabel');
+  const conf = document.getElementById('emotionConfidence');
+  const status = document.getElementById('emotionStatus');
+
+  overlay.classList.remove('hidden');
+  status.textContent = 'Demo Mode — Mô phỏng cảm xúc';
+
+  let idx = 0;
+  _demoInterval = setInterval(() => {
+    const emotion = emotions[idx % emotions.length];
+    _lastEmotion = { emotion, confidence: 0.7 + Math.random() * 0.25, timestamp: Date.now() };
+
+    icon.textContent = labels[emotion].split(' ')[0];
+    label.textContent = labels[emotion];
+    conf.textContent = `${(_lastEmotion.confidence * 100).toFixed(0)}%`;
+
+    idx++;
+  }, 3000);
+}
+
 // ── Start Camera ────────────────────────────────────────────────────────────
 export async function startCamera() {
   const video = document.getElementById('cameraVideo');
@@ -59,6 +108,17 @@ export async function startCamera() {
   const startBtn = document.getElementById('cameraStartBtn');
   const captureBtn = document.getElementById('cameraCaptureBtn');
   const stopBtn = document.getElementById('cameraStopBtn');
+
+  // Check if camera API is available
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    console.warn('[Camera] Camera API not available — starting demo mode');
+    placeholder.classList.add('hidden');
+    startBtn.classList.add('hidden');
+    captureBtn.classList.remove('hidden');
+    stopBtn.classList.remove('hidden');
+    _startDemoMode();
+    return true;
+  }
 
   try {
     _stream = await navigator.mediaDevices.getUserMedia({
@@ -76,18 +136,21 @@ export async function startCamera() {
     if (loaded) {
       _startDetection();
     } else {
-      document.getElementById('emotionStatus').textContent = 'Chế độ cơ bản';
+      // face-api failed — use demo mode but with video
+      document.getElementById('emotionStatus').textContent = 'Camera OK — Demo Mode';
+      _startDemoMode();
     }
 
     return true;
   } catch (err) {
-    console.error('[Camera] Failed to start:', err);
-    placeholder.innerHTML = `
-      <span class="camera-icon">❌</span>
-      <p>Không thể truy cập camera</p>
-      <p class="camera-hint">${err.message}</p>
-    `;
-    return false;
+    console.warn('[Camera] Camera access denied — starting demo mode:', err.message);
+    // Camera denied — start demo mode instead of failing
+    placeholder.classList.add('hidden');
+    startBtn.classList.add('hidden');
+    captureBtn.classList.remove('hidden');
+    stopBtn.classList.remove('hidden');
+    _startDemoMode();
+    return true;
   }
 }
 
@@ -98,6 +161,11 @@ export function stopCamera() {
     _stream = null;
   }
   _isDetecting = false;
+  _demoMode = false;
+  if (_demoInterval) {
+    clearInterval(_demoInterval);
+    _demoInterval = null;
+  }
 
   const video = document.getElementById('cameraVideo');
   const placeholder = document.getElementById('cameraPlaceholder');
@@ -175,13 +243,7 @@ export async function captureAndAnalyze() {
 
   result.classList.remove('hidden');
 
-  // Draw current frame to canvas
-  canvas.width = video.videoWidth || 480;
-  canvas.height = video.videoHeight || 360;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-  // If we have real-time detection results, use them
+  // If we have real-time detection results (from demo or real camera), use them
   if (_lastEmotion) {
     const { emotion, confidence } = _lastEmotion;
     const label = EMOTION_LABELS[emotion] || emotion;
@@ -195,19 +257,34 @@ export async function captureAndAnalyze() {
         </div>
       </div>
     `;
-    advice.textContent = adviceText;
+    advice.textContent = _demoMode
+      ? `${adviceText}\n\n💡 Đây là chế độ demo. Cho kết quả thật, hãy cho phép quyền camera.`
+      : adviceText;
+  } else if (_demoMode) {
+    // Demo mode but no emotion detected yet
+    details.innerHTML = `<p>Đang mô phỏng... Vui lòng đợi vài giây.</p>`;
+    advice.textContent = '';
   } else {
     // Fallback: analyze canvas pixel data for basic mood detection
-    const fallback = _analyzeFrameFallback(ctx, canvas.width, canvas.height);
-    details.innerHTML = `
-      <div class="emotion-bar">
-        <span class="emotion-bar-label">${fallback.label}</span>
-        <div class="emotion-bar-track">
-          <div class="emotion-bar-fill" style="width:${(fallback.confidence * 100).toFixed(0)}%;background:var(--warning)"></div>
+    if (video.videoWidth) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const fallback = _analyzeFrameFallback(ctx, canvas.width, canvas.height);
+      details.innerHTML = `
+        <div class="emotion-bar">
+          <span class="emotion-bar-label">${fallback.label}</span>
+          <div class="emotion-bar-track">
+            <div class="emotion-bar-fill" style="width:${(fallback.confidence * 100).toFixed(0)}%;background:var(--warning)"></div>
+          </div>
         </div>
-      </div>
-    `;
-    advice.textContent = fallback.advice;
+      `;
+      advice.textContent = fallback.advice;
+    } else {
+      details.innerHTML = `<p>⚠️ Không có dữ liệu camera. Hãy thử lại.</p>`;
+      advice.textContent = '';
+    }
   }
 
   return _lastEmotion;
