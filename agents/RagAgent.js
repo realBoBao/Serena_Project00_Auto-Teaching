@@ -1146,6 +1146,24 @@ export async function answerQuestion(query, options = {}) {
     };
   }
 
+  // ── Tier 3: Query Quality Gate — đánh giá câu hỏi TRƯỚC khi vào RAG ──
+  if (!options.skipQualityGate) {
+    try {
+      const { assessQueryQuality } = await import('../lib/query_quality.js');
+      const quality = assessQueryQuality(cleanQuery);
+      if (quality.score < 0.5 && quality.issues.length > 0) {
+        logger.info(`[QueryQuality] Low quality query (${quality.score.toFixed(2)}): ${quality.issues.join('; ')}`);
+        // Vẫn cho phép search nhưng flag để biết kết quả có thể kém
+        options._qualityWarning = quality.issues[0];
+        options._detectedDomain = quality.domain;
+      }
+      // Nếu có domain detected, inject vào options để filter KG search
+      if (quality.domain) {
+        options._detectedDomain = quality.domain;
+      }
+    } catch { /* quality gate optional */ }
+  }
+
   // ── Tier 2: Speculative Execution — kiểm tra prefetch cache trước ──
   if (!options.skipCache && !options.isDeep && !options.bypassCache) {
     try {

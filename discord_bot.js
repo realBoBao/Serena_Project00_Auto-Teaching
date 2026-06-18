@@ -11,6 +11,7 @@ import {
 } from 'discord.js';
 import { initializeMarkovFiles } from './lib/markov_engine.js';
 import { orchestrator } from './Orchestrator.js';
+import { orchestratorGuard } from './lib/orchestrator_guard.js';
 import { sandboxGateway } from './sandbox_gateway.js';
 import { withTimeout, TimeoutError } from './lib/with_timeout.js';
 import { embedText } from './lib/embeddings.js';
@@ -581,6 +582,29 @@ client.on(Events.MessageCreate, async (message) => {
           '**🤖 Serena** — AI Robot Girl Companion | MIT License',
         allowedMentions: { parse: [], repliedUser: false },
       });
+    }
+
+    // ── !agentstats command: Agent Usage Statistics ──
+    if (content === '!agentstats') {
+      try {
+        const { orchestratorGuard } = await import('./lib/orchestrator_guard.js');
+        const usage = orchestratorGuard.getAgentUsage();
+        if (usage.length === 0) {
+          return message.reply('📊 Chưa có dữ liệu agent usage. Hãy dùng vài lệnh trước!');
+        }
+        const lines = usage.map(([name, count]) => `• **${name}**: ${count} calls`);
+        return message.reply({
+          embeds: [{
+            color: 0x7F77DD,
+            title: '📊 Agent Usage Statistics',
+            description: lines.join('\n'),
+            footer: { text: 'Track since last restart' },
+          }],
+          allowedMentions: { parse: [], repliedUser: false },
+        });
+      } catch (err) {
+        return message.reply(`❌ Lỗi: ${err?.message || err}`);
+      }
     }
 
     // ── 0. Socratic Mode: Kiểm tra session đang active ──
