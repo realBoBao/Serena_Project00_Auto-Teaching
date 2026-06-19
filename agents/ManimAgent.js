@@ -108,30 +108,514 @@ Return ONLY the Python code in a code block.`;
 function generateTemplateCode(description) {
   const sceneName = 'GeneratedAnimation';
   const title = description.slice(0, 60).replace(/["\\]/g, '');
+  const descLower = description.toLowerCase();
 
+  // Detect topic and generate appropriate animation
+  if (descLower.includes('quicksort') || descLower.includes('quick sort') || descLower.includes('sắp xếp nhanh')) {
+    return generateQuicksortAnimation(sceneName);
+  }
+  if (descLower.includes('merge sort') || descLower.includes('sắp xếp trộn')) {
+    return generateMergesortAnimation(sceneName);
+  }
+  if (descLower.includes('binary search') || descLower.includes('tìm kiếm nhị phân')) {
+    return generateBinarySearchAnimation(sceneName);
+  }
+  if (descLower.includes('bfs') || descLower.includes('dfs') || descLower.includes('graph traversal')) {
+    return generateGraphTraversalAnimation(sceneName);
+  }
+  if (descLower.includes('hash table') || descLower.includes('hash map') || descLower.includes('băm')) {
+    return generateHashTableAnimation(sceneName);
+  }
+  if (descLower.includes('linked list') || descLower.includes('danh sách liên kết')) {
+    return generateLinkedListAnimation(sceneName);
+  }
+  if (descLower.includes('stack') || descLower.includes('queue') || descLower.includes('hàng đợi')) {
+    return generateStackQueueAnimation(sceneName);
+  }
+  if (descLower.includes('tree') || descLower.includes('cây nhị phân') || descLower.includes('bst')) {
+    return generateTreeAnimation(sceneName);
+  }
+
+  // Default: educational animation with step-by-step explanation
+  return generateStepByStepAnimation(sceneName, title);
+}
+
+/**
+ * Quicksort animation — shows each partition step
+ */
+function generateQuicksortAnimation(sceneName) {
   return `from manim import *
 
 class ${sceneName}(Scene):
     def construct(self):
         # Title
-        title = Text("${title}", font_size=32)
+        title = Text("QuickSort Algorithm", font_size=32, color=BLUE)
+        title.to_edge(UP)
         self.play(Write(title))
-        self.wait(1)
-
-        # Content placeholder
-        content = Text("Animation: ${title}", font_size=24, color=BLUE)
-        content.next_to(title, DOWN, buff=0.5)
-        self.play(FadeIn(content))
-        self.wait(1)
-
-        # Summary box
-        box = SurroundingRectangle(content, color=YELLOW, buff=0.3)
-        self.play(Create(box))
-        self.wait(1)
-
-        # End
-        self.play(FadeOut(title), FadeOut(content), FadeOut(box))
         self.wait(0.5)
+
+        # Step 1: Show initial array
+        arr = [38, 27, 43, 3, 9, 82, 10]
+        bars = VGroup()
+        labels = VGroup()
+        for i, val in enumerate(arr):
+            bar = Rectangle(width=0.6, height=val/10, color=BLUE, fill_opacity=0.7)
+            bar.next_to(bars[-1] if bars else ORIGIN, RIGHT, buff=0.1) if bars else bar.move_to(ORIGIN + RIGHT * (i - len(arr)/2) * 0.7)
+            label = Text(str(val), font_size=16)
+            label.next_to(bar, DOWN, buff=0.1)
+            bars.add(bar)
+            labels.add(label)
+
+        bars.arrange(RIGHT, buff=0.1)
+        bars.next_to(title, DOWN, buff=0.5)
+        labels.next_to(bars, DOWN, buff=0.1)
+
+        step1 = Text("Step 1: Initial array", font_size=20, color=YELLOW)
+        step1.next_to(bars, UP, buff=0.3)
+        self.play(Create(bars), Write(labels), Write(step1))
+        self.wait(1)
+
+        # Step 2: Choose pivot
+        pivot_bar = bars[3]  # pivot = 3
+        pivot_label = Text("Pivot", font_size=14, color=RED)
+        pivot_label.next_to(pivot_bar, UP, buff=0.2)
+        step2 = Text("Step 2: Choose pivot (last element)", font_size=20, color=YELLOW)
+        step2.next_to(bars, UP, buff=0.3)
+        self.play(pivot_bar.animate.set_color(RED), Write(pivot_label), Transform(step1, step2))
+        self.wait(1)
+
+        # Step 3: Partition
+        step3 = Text("Step 3: Partition — move smaller to left", font_size=20, color=YELLOW)
+        step3.next_to(bars, UP, buff=0.3)
+        self.play(Transform(step1, step3))
+        self.wait(1)
+
+        # Step 4: Show result
+        result_text = Text("After partitioning, pivot is in correct position", font_size=18, color=GREEN)
+        result_text.next_to(bars, DOWN, buff=0.5)
+        self.play(Write(result_text))
+        self.wait(1)
+
+        # Step 5: Recurse
+        step5 = Text("Step 5: Recursively sort left and right sub-arrays", font_size=18, color=GREEN)
+        step5.next_to(result_text, DOWN, buff=0.3)
+        self.play(Write(step5))
+        self.wait(1)
+
+        # Summary
+        summary = Text("QuickSort: O(n log n) average, O(n²) worst case", font_size=16, color=BLUE)
+        summary.to_edge(DOWN)
+        self.play(Write(summary))
+        self.wait(1)
+
+        self.play(FadeOut(VGroup(*self.mobjects)))
+`;
+}
+
+/**
+ * Step-by-step educational animation (generic)
+ */
+function generateStepByStepAnimation(sceneName, title) {
+  return `from manim import *
+
+class ${sceneName}(Scene):
+    def construct(self):
+        # Title
+        title_text = Text("${title}", font_size=28, color=BLUE)
+        title_text.to_edge(UP)
+        self.play(Write(title_text))
+        self.wait(0.5)
+
+        # Step 1
+        step1 = Text("Step 1: Understand the problem", font_size=20, color=YELLOW)
+        step1.next_to(title_text, DOWN, buff=0.5)
+        self.play(Write(step1))
+        self.wait(1)
+
+        # Step 2
+        step2 = Text("Step 2: Identify key concepts", font_size=20, color=YELLOW)
+        step2.next_to(step1, DOWN, buff=0.3)
+        self.play(Write(step2))
+        self.wait(1)
+
+        # Step 3
+        step3 = Text("Step 3: Apply the solution", font_size=20, color=YELLOW)
+        step3.next_to(step2, DOWN, buff=0.3)
+        self.play(Write(step3))
+        self.wait(1)
+
+        # Step 4
+        step4 = Text("Step 4: Verify the result", font_size=20, color=YELLOW)
+        step4.next_to(step3, DOWN, buff=0.3)
+        self.play(Write(step4))
+        self.wait(1)
+
+        # Summary
+        summary = Text("Key takeaway: Practice makes perfect!", font_size=18, color=GREEN)
+        summary.to_edge(DOWN)
+        self.play(Write(summary))
+        self.wait(1)
+
+        self.play(FadeOut(VGroup(*self.mobjects)))
+`;
+}
+
+/**
+ * Binary Search animation
+ */
+function generateBinarySearchAnimation(sceneName) {
+  return `from manim import *
+
+class ${sceneName}(Scene):
+    def construct(self):
+        title = Text("Binary Search Algorithm", font_size=32, color=BLUE)
+        title.to_edge(UP)
+        self.play(Write(title))
+
+        # Sorted array
+        arr = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19]
+        bars = VGroup()
+        for i, val in enumerate(arr):
+            bar = Rectangle(width=0.5, height=0.5, color=BLUE, fill_opacity=0.7)
+            bar.move_to(RIGHT * (i - len(arr)/2) * 0.6)
+            label = Text(str(val), font_size=14)
+            label.next_to(bar, DOWN, buff=0.1)
+            bars.add(VGroup(bar, label))
+
+        bars.arrange(RIGHT, buff=0.1)
+        bars.next_to(title, DOWN, buff=0.5)
+        self.play(Create(bars))
+        self.wait(0.5)
+
+        # Target
+        target = Text("Target: 11", font_size=20, color=RED)
+        target.next_to(bars, UP, buff=0.3)
+        self.play(Write(target))
+        self.wait(0.5)
+
+        # Step-by-step search
+        steps = [
+            "low=0, high=9, mid=4 → arr[4]=9 < 11",
+            "low=5, high=9, mid=7 → arr[7]=15 > 11",
+            "low=5, high=6, mid=5 → arr[5]=11 ✓ FOUND!"
+        ]
+        for i, step in enumerate(steps):
+            step_text = text(f"Step {i+1}: {step}", font_size=16, color=YELLOW)
+            step_text.next_to(bars, DOWN, buff=0.5)
+            self.play(Write(step_text))
+            self.wait(1.5)
+            if i < len(steps) - 1:
+                self.play(FadeOut(step_text))
+
+        summary = Text("Binary Search: O(log n) time complexity", font_size=16, color=GREEN)
+        summary.to_edge(DOWN)
+        self.play(Write(summary))
+        self.wait(1)
+`;
+}
+
+/**
+ * Graph Traversal animation (BFS/DFS)
+ */
+function generateGraphTraversalAnimation(sceneName) {
+  return `from manim import *
+
+class ${sceneName}(Scene):
+    def construct(self):
+        title = Text("Graph Traversal: BFS vs DFS", font_size=32, color=BLUE)
+        title.to_edge(UP)
+        self.play(Write(title))
+
+        # Create simple graph
+        nodes = {
+            'A': Dot(point=UP * 1.5 + LEFT * 2, color=BLUE),
+            'B': Dot(point=UP * 0.5 + LEFT * 1, color=BLUE),
+            'C': Dot(point=UP * 0.5 + RIGHT * 1, color=BLUE),
+            'D': Dot(point=DOWN * 0.5 + LEFT * 2, color=BLUE),
+            'E': Dot(point=DOWN * 0.5 + RIGHT * 0, color=BLUE),
+            'F': Dot(point=DOWN * 1.5 + RIGHT * 1, color=BLUE),
+        }
+
+        edges = [
+            Line(nodes['A'].get_center(), nodes['B'].get_center()),
+            Line(nodes['A'].get_center(), nodes['C'].get_center()),
+            Line(nodes['B'].get_center(), nodes['D'].get_center()),
+            Line(nodes['B'].get_center(), nodes['E'].get_center()),
+            Line(nodes['C'].get_center(), nodes['E'].get_center()),
+            Line(nodes['C'].get_center(), nodes['F'].get_center()),
+        ]
+
+        node_labels = VGroup(*[
+            Text(name, font_size=16).next_to(node, DOWN, buff=0.1)
+            for name, node in nodes.items()
+        ])
+
+        self.play(Create(VGroup(*nodes.values())), Create(Vgroup(*edges)), Write(node_labels))
+        self.wait(1)
+
+        # BFS order
+        bfs_text = Text("BFS Order: A → B → C → D → E → F", font_size=18, color=GREEN)
+        bfs_text.next_to(Vgroup(*edges), DOWN, buff=0.5)
+        self.play(Write(bfs_text))
+        self.wait(1)
+
+        # DFS order
+        dfs_text = Text("DFS Order: A → B → D → E → C → F", font_size=18, color=YELLOW)
+        dfs_text.next_to(bfs_text, DOWN, buff=0.3)
+        self.play(Write(dfs_text))
+        self.wait(1)
+`;
+}
+
+/**
+ * Hash Table animation
+ */
+function generateHashTableAnimation(sceneName) {
+  return `from manim import *
+
+class ${sceneName}(Scene):
+    def construct(self):
+        title = Text("Hash Table", font_size=32, color=BLUE)
+        title.to_edge(UP)
+        self.play(Write(title))
+
+        # Show hash function
+        func = Text("hash(key) = key % capacity", font_size=20, color=YELLOW)
+        func.next_to(title, DOWN, buff=0.5)
+        self.play(Write(func))
+        self.wait(1)
+
+        # Show buckets
+        buckets = VGroup()
+        for i in range(7):
+            bucket = Rectangle(width=0.8, height=0.5, color=BLUE, fill_opacity=0.3)
+            bucket.move_to(RIGHT * (i - 3) * 1.2 + DOWN * 1)
+            label = Text(f"[{i}]", font_size=14)
+            label.next_to(bucket, UP, buff=0.1)
+            buckets.add(VGroup(bucket, label))
+
+        buckets.arrange(RIGHT, buff=0.2)
+        self.play(Create(buckets))
+        self.wait(0.5)
+
+        # Insert keys
+        keys = [("apple", 3), ("banana", 5), ("cherry", 1)]
+        for key, idx in keys:
+            entry = Text(f'"{key}" → [{idx}]', font_size=16, color=GREEN)
+            entry.next_to(buckets, DOWN, buff=0.5)
+            self.play(Write(entry))
+            self.wait(1)
+            self.play(FadeOut(entry))
+
+        summary = Text("Hash Table: O(1) average lookup", font_size=16, color=GREEN)
+        summary.to_edge(DOWN)
+        self.play(Write(summary))
+        self.wait(1)
+`;
+}
+
+/**
+ * Linked List animation
+ */
+function generateLinkedListAnimation(sceneName) {
+  return `from manim import *
+
+class ${sceneName}(Scene):
+    def construct(self):
+        title = Text("Linked List", font_size=32, color=BLUE)
+        title.to_edge(UP)
+        self.play(Write(title))
+
+        # Create nodes
+        nodes = []
+        values = [10, 20, 30, 40]
+        for i, val in enumerate(values):
+            rect = Rectangle(width=1, height=0.6, color=BLUE, fill_opacity=0.7)
+            rect.move_to(RIGHT * (i - len(values)/2) * 1.5)
+            label = Text(str(val), font_size=16, color=WHITE)
+            label.move_to(rect.get_center())
+            arrow = Arrow(rect.get_right(), rect.get_right() + RIGHT * 0.5, buff=0.1) if i < len(values) - 1 else None
+            node_group = VGroup(rect, label)
+            if arrow:
+                node_group.add(arrow)
+            nodes.append(node_group)
+
+        linked_list = VGroup(*nodes)
+        linked_list.arrange(RIGHT, buff=0.5)
+        linked_list.next_to(title, DOWN, buff=1)
+        self.play(Create(linked_list))
+        self.wait(1)
+
+        # Show traversal
+        traverse = Text("Traversal: 10 → 20 → 30 → 40 → null", font_size=18, color=YELLOW)
+        traverse.next_to(linked_list, DOWN, buff=0.5)
+        self.play(Write(traverse))
+        self.wait(1)
+
+        summary = Text("Linked List: O(n) search, O(1) insert at head", font_size=16, color=GREEN)
+        summary.to_edge(DOWN)
+        self.play(Write(summary))
+        self.wait(1)
+`;
+}
+
+/**
+ * Stack/Queue animation
+ */
+function generateStackQueueAnimation(sceneName) {
+  return `from manim import *
+
+class ${sceneName}(Scene):
+    def construct(self):
+        title = Text("Stack (LIFO) vs Queue (FIFO)", font_size=32, color=BLUE)
+        title.to_edge(UP)
+        self.play(Write(title))
+
+        # Stack
+        stack_title = Text("Stack: Last In, First Out", font_size=18, color=YELLOW)
+        stack_title.move_to(LEFT * 3 + UP * 0.5)
+        self.play(Write(stack_title))
+
+        stack_items = []
+        for i, val in enumerate([1, 2, 3]):
+            rect = Rectangle(width=1, height=0.5, color=BLUE, fill_opacity=0.7)
+            rect.move_to(LEFT * 3 + DOWN * i * 0.6)
+            label = Text(str(val), font_size=14, color=WHITE)
+            label.move_to(rect.get_center())
+            stack_items.append(VGroup(rect, label))
+
+        self.play(Create(Vgroup(*stack_items)))
+        self.wait(0.5)
+
+        # Queue
+        queue_title = Text("Queue: First In, First Out", font_size=18, color=YELLOW)
+        queue_title.move_to(RIGHT * 3 + UP * 0.5)
+        self.play(Write(queue_title))
+
+        queue_items = []
+        for i, val in enumerate([1, 2, 3]):
+            rect = Rectangle(width=1, height=0.5, color=GREEN, fill_opacity=0.7)
+            rect.move_to(RIGHT * 3 + DOWN * i * 0.6)
+            label = Text(str(val), font_size=14, color=WHITE)
+            label.move_to(rect.get_center())
+            queue_items.append(VGroup(rect, label))
+
+        self.play(Create(Vgroup(*queue_items)))
+        self.wait(1)
+
+        summary = Text("Stack: push/pop | Queue: enqueue/dequeue", font_size=16, color=GREEN)
+        summary.to_edge(DOWN)
+        self.play(Write(summary))
+        self.wait(1)
+`;
+}
+
+/**
+ * Tree animation
+ */
+function generateTreeAnimation(sceneName) {
+  return `from manim import *
+
+class ${sceneName}(Scene):
+    def construct(self):
+        title = Text("Binary Search Tree", font_size=32, color=BLUE)
+        title.to_edge(UP)
+        self.play(Write(title))
+
+        # Create tree
+        root = Dot(point=UP * 1.5, color=BLUE)
+        left = Dot(point=UP * 0.5 + LEFT * 1.5, color=BLUE)
+        right = Dot(point=UP * 0.5 + RIGHT * 1.5, color=BLUE)
+        left_left = Dot(point=DOWN * 0.5 + LEFT * 2.5, color=BLUE)
+        left_right = Dot(point=DOWN * 0.5 + LEFT * 0.5, color=BLUE)
+
+        edges = [
+            Line(root.get_center(), left.get_center()),
+            Line(root.get_center(), right.get_center()),
+            Line(left.get_center(), left_left.get_center()),
+            Line(left.get_center(), left_right.get_center()),
+        ]
+
+        labels = VGroup(
+            Text("8", font_size=16).next_to(root, UP, buff=0.1),
+            Text("3", font_size=16).next_to(left, UP, buff=0.1),
+            Text("10", font_size=16).next_to(right, UP, buff=0.1),
+            Text("1", font_size=16).next_to(left_left, LEFT, buff=0.1),
+            Text("6", font_size=16).next_to(left_right, RIGHT, buff=0.1),
+        )
+
+        self.play(Create(Vgroup(root, left, right, left_left, left_right)), Create(Vgroup(*edges)), Write(labels))
+        self.wait(1)
+
+        # Traversal
+        traversal = Text("In-order: 1 → 3 → 6 → 8 → 10", font_size=18, color=YELLOW)
+        traversal.next_to(Vgroup(*edges), DOWN, buff=0.5)
+        self.play(Write(traversal))
+        self.wait(1)
+
+        summary = Text("BST: O(log n) search, insert, delete", font_size=16, color=GREEN)
+        summary.to_edge(DOWN)
+        self.play(Write(summary))
+        self.wait(1)
+`;
+}
+
+/**
+ * Mergesort animation
+ */
+function generateMergesortAnimation(sceneName) {
+  return `from manim import *
+
+class ${sceneName}(Scene):
+    def construct(self):
+        title = Text("Merge Sort Algorithm", font_size=32, color=BLUE)
+        title.to_edge(UP)
+        self.play(Write(title))
+
+        # Step 1: Initial array
+        step1 = Text("Step 1: Divide array in half recursively", font_size=20, color=YELLOW)
+        step1.next_to(title, DOWN, buff=0.5)
+        self.play(Write(step1))
+        self.wait(1)
+
+        # Step 2: Show division
+        arr = [38, 27, 43, 3, 9, 82, 10, 15]
+        bars = VGroup()
+        for i, val in enumerate(arr):
+            bar = Rectangle(width=0.5, height=val/15, color=BLUE, fill_opacity=0.7)
+            bar.move_to(RIGHT * (i - len(arr)/2) * 0.6 + DOWN * 0.5)
+            label = Text(str(val), font_size=12)
+            label.next_to(bar, DOWN, buff=0.1)
+            bars.add(VGroup(bar, label))
+
+        bars.arrange(RIGHT, buff=0.1)
+        self.play(Create(bars))
+        self.wait(1)
+
+        # Step 3: Merge
+        step3 = Text("Step 3: Merge sorted halves", font_size=20, color=YELLOW)
+        step3.next_to(bars, DOWN, buff=0.5)
+        self.play(Write(step3))
+        self.wait(1)
+
+        # Step 4: Result
+        sorted_arr = [3, 9, 10, 15, 27, 38, 43, 82]
+        sorted_bars = VGroup()
+        for i, val in enumerate(sorted_arr):
+            bar = Rectangle(width=0.5, height=val/15, color=GREEN, fill_opacity=0.7)
+            bar.move_to(RIGHT * (i - len(sorted_arr)/2) * 0.6 + DOWN * 2)
+            label = Text(str(val), font_size=12)
+            label.next_to(bar, DOWN, buff=0.1)
+            sorted_bars.add(VGroup(bar, label))
+
+        sorted_bars.arrange(RIGHT, buff=0.1)
+        self.play(Create(sorted_bars))
+        self.wait(1)
+
+        summary = Text("Merge Sort: O(n log n) guaranteed, stable sort", font_size=16, color=GREEN)
+        summary.to_edge(DOWN)
+        self.play(Write(summary))
+        self.wait(1)
 `;
 }
 
