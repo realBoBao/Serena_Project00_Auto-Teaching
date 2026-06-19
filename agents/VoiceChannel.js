@@ -13,7 +13,14 @@ import {
   entersState,
 } from '@discordjs/voice';
 import { getLogger } from '../lib/logger.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
+
 const logger = getLogger('VoiceChannel');
+const execAsync = promisify(exec);
 
 const _connections = new Map(); // guildId → { connection, player, speaking }
 
@@ -34,6 +41,8 @@ export async function joinChannel(channel) {
       channelId: channel.id,
       guildId: channel.guild.id,
       adapterCreator: channel.guild.voiceAdapterCreator,
+      selfDeaf: false,  // ← FIX: Không tự điếc, bot có thể nghe
+      selfMute: false,  // ← FIX: Không tự tắt mic
     });
 
     // Chờ kết nối sẵn sàng
@@ -131,4 +140,62 @@ export function isConnected(guildId) {
  */
 export function listConnections() {
   return [..._connections.keys()];
+}
+
+/**
+ * Text-to-Speech bằng edge-tts (miễn phí, không cần API key).
+ * @param {string} text — Nội dung cần đọc
+ * @param {string} [voice='vi-VN-NamNeural'] — Giọng đọc (Vietnamese male)
+ * @returns {Promise<string>} — Đường dẫn file MP3
+ */
+export async function textToSpeech(text, voice = 'vi-VN-NamNeural') {
+  try {
+    // Tạo file tạm
+    const tmpDir = os.tmpdir();
+    const outPath = path.join(tmpDir, `tts-${Date.now()}.mp3`);
+
+    // Gọi edge-tts
+    const safeText = text.replace(/"/g, '\\"').replace(/'/g, "\\'");
+    const cmd = `edge-tts --voice ${voice} --text "${safeText}" --write-media "${outPath}"`;
+
+    await execAsync(cmd, { timeout: 30000 });
+
+    // Verify file exists
+    if (fs.existsSync(outPath) && fs.statSync(outPath).size > 0) {
+      logger.info(`[Voice] TTS generated: ${outPath}`);
+      return outPath;
+    }
+
+    throw new Error('TTS output file is empty');
+  } catch (err) {
+    logger.error(`[Voice] TTS failed: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * Phát text trong voice channel (TTS + play).
+ * @param {string} guildId
+ * @param {string} text
+ * @param {string} [voice='vi-VN-NamNeural']
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function speakInChannel(guildId, text, voice = 'vi-VN-NamNeural') {
+  // Generate TTS audio
+  const audioPath = await textToSpeech(text, voice);
+  if (!audioPath) {
+    return { success: false, error: 'TTS failed' };
+  }
+
+  // Play in channel
+  const result = await playAudio(guildId, audioPath);
+
+  // Cleanup temp file
+  try {
+    setTimeout(() => {
+      fs.unlink(audioPath, () => {});
+    }, 5000);
+  } catch { /* ignore */ }
+
+  return result;
 }
