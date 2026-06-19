@@ -34,7 +34,7 @@
   "dependencies": {
     "@discordjs/voice": "^0.19.2",
     "@google-cloud/bigquery": "^8.3.1",
-    "@google/genai": "^2.8.0",
+    "@google/genai": "^2.9.0",
     "@langchain/core": "^1.1.48",
     "@langchain/google-genai": "^2.1.31",
     "@mozilla/readability": "^0.6.0",

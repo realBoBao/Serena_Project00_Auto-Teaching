@@ -83,23 +83,24 @@ async function sendDailyProblem() {
 
   // 3. Lấy bài từ tier tương ứng (80% tier hiện tại, 20% tier trước để ôn lại)
   let rows;
+  const difficultyMap = { 1: 'easy', 2: 'medium', 3: 'hard', 4: 'expert' };
+  const targetDifficulty = difficultyMap[targetTier] || 'easy';
+
   if (Math.random() < 0.8) {
-    // 80%: Bài từ tier hiện tại
     rows = db.prepare(
-      "SELECT id, chunk_text, metadata FROM vectors WHERE domain = 'algorithms' AND id LIKE 'interview::%' AND json_extract(metadata, '$.tier') = ?"
-    ).all(targetTier);
+      "SELECT id, chunk_text, metadata, difficulty FROM vectors WHERE domain = 'algorithms' AND id LIKE 'interview::%' AND difficulty = ?"
+    ).all(targetDifficulty);
   } else {
-    // 20%: Bài từ tier trước để ôn lại
     const reviewTier = Math.max(1, targetTier - 1);
+    const reviewDifficulty = difficultyMap[reviewTier] || 'easy';
     rows = db.prepare(
-      "SELECT id, chunk_text, metadata FROM vectors WHERE domain = 'algorithms' AND id LIKE 'interview::%' AND json_extract(metadata, '$.tier') = ?"
-    ).all(reviewTier);
+      "SELECT id, chunk_text, metadata, difficulty FROM vectors WHERE domain = 'algorithms' AND id LIKE 'interview::%' AND difficulty = ?"
+    ).all(reviewDifficulty);
   }
 
-  // Nếu không có bài ở tier đó, fallback sang tier 1
   if (rows.length === 0) {
     rows = db.prepare(
-      "SELECT id, chunk_text, metadata FROM vectors WHERE domain = 'algorithms' AND id LIKE 'interview::%' AND json_extract(metadata, '$.tier') = 1"
+      "SELECT id, chunk_text, metadata, difficulty FROM vectors WHERE domain = 'algorithms' AND id LIKE 'interview::%' AND difficulty = 'easy'"
     ).all();
   }
 
