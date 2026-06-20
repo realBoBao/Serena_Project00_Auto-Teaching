@@ -471,6 +471,12 @@ client.on(Events.MessageCreate, async (message) => {
       await moodState.recordState(message.author.id, moodResult);
     } catch { /* mood analysis non-critical */ }
 
+    // ── 0a. Session Memory — save user message ──
+    try {
+      const { SessionMemory } = await import('./lib/session_memory.js');
+      SessionMemory.save(message.author.id, 'user', content);
+    } catch { /* session memory non-critical */ }
+
     // ── 0a. Voice Channel commands ──
     if (content === '!voice join' || content === '!join') {
       try {
@@ -765,11 +771,23 @@ client.on(Events.MessageCreate, async (message) => {
         if (!query) {
           return message.reply('📋 Dùng: `!ask <câu hỏi>` hoặc `!ask <câu hỏi> --deep`');
         }
+        // Inject session history vào context
+        let history = [];
+        try {
+          const { SessionMemory } = await import('./lib/session_memory.js');
+          history = SessionMemory.getRecent(message.author.id, 6);
+        } catch { /* optional */ }
         const ragResult = await orchestratorGuard.routeWithGuard('RAG', {
           query,
-          options: { userId: message.author.id },
+          options: { userId: message.author.id, history },
         }, message.author.id);
-        await message.reply(ragResult?.answer || ragResult?.text || ragResult?.result?.answer || ragResult?.result?.text || 'Không tìm thấy câu trả lời.');
+        const reply = ragResult?.answer || ragResult?.text || ragResult?.result?.answer || ragResult?.result?.text || 'Không tìm thấy câu trả lời.';
+        await message.reply(reply);
+        // Save assistant reply to session memory
+        try {
+          const { SessionMemory } = await import('./lib/session_memory.js');
+          SessionMemory.save(message.author.id, 'assistant', reply);
+        } catch { /* optional */ }
       } catch (err) {
         await message.reply(`❌ Lỗi RAG: ${err?.message || err}`);
       }

@@ -121,7 +121,7 @@ const AGENT_REGISTRY = {
   rag_v2: {
     name: 'RagAgent (Shadow)',
     description: 'RAG v2 — shadow copy for dark traffic comparison',
-    import: () => import('./RagAgent.js'),  // Cùng module, khác prompt/params
+    import: () => import('./RagAgent.js'),
     enabled: false,  // Bật khi muốn test
     cost: 'medium',
     isShadow: true,
@@ -135,6 +135,15 @@ const AGENT_REGISTRY = {
     isShadow: true,
   },
 };
+
+// ── Step 2: Simplify — Agents disabled by default (enable via !agentstats or .env)
+// Only core agents are enabled. Others must be explicitly enabled.
+const DISABLED_BY_DEFAULT = ['manim', 'voice', 'vision', 'security', 'suggestion', 'persona', 'evo', 'graph', 'mentor', 'incident', 'outreach', 'recap', 'socratic', 'debate', 'pdf', 'planner', 'analysis', 'interaction'];
+for (const key of DISABLED_BY_DEFAULT) {
+  if (AGENT_REGISTRY[key]) {
+    AGENT_REGISTRY[key].enabled = process.env[`AGENT_${key.toUpperCase()}_ENABLED`] === 'true';
+  }
+}
 
 // ── Intent → Agent Mapping ──
 // Mỗi intent chỉ được route đến agent đã đăng ký
@@ -293,8 +302,10 @@ class RouterAgent {
         }
       }
 
-      // Update stats
+      // Update stats (Step 1: Question — track usage)
       this._stats.agentCalls[agentKey] = (this._stats.agentCalls[agentKey] || 0) + 1;
+      this._stats.lastCallTime = Date.now();
+      this._stats.lastAgent = agentKey;
 
       // ── Shadow Launching (Tier 2) ──
       // Nếu SHADOW_MODE=true và có shadow agent cho primary → fork background.
@@ -475,7 +486,16 @@ class RouterAgent {
   }
 
   resetStats() {
-    this._stats = { totalRequests: 0, agentCalls: {}, errors: 0 };
+    this._stats = { totalRequests: 0, agentCalls: {}, errors: 0, shadowComparisons: 0 };
+  }
+
+  // ── Step 6: Continuous Improvement — getAgentUsage for quality tracking
+  getAgentUsage() {
+    const usage = new Map();
+    for (const [agent, count] of Object.entries(this._stats.agentCalls)) {
+      usage.set(agent, count);
+    }
+    return usage;
   }
 }
 

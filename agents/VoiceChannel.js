@@ -148,17 +148,25 @@ export function listConnections() {
  * @param {string} [voice='vi-VN-NamNeural'] — Giọng đọc (Vietnamese male)
  * @returns {Promise<string>} — Đường dẫn file MP3
  */
-export async function textToSpeech(text, voice = 'vi-VN-NamNeural') {
+export async function textToSpeech(text, voice = 'vi-VN-HoaiNeural') {
   try {
     // Tạo file tạm
     const tmpDir = os.tmpdir();
     const outPath = path.join(tmpDir, `tts-${Date.now()}.mp3`);
 
-    // Gọi edge-tts
+    // Gọi edge-tts — dùng full path vì exec không inherit full PATH trên Windows
     const safeText = text.replace(/"/g, '\\"').replace(/'/g, "\\'");
-    const cmd = `edge-tts --voice ${voice} --text "${safeText}" --write-media "${outPath}"`;
+    const edgeTtsPath = process.env.EDGE_TTS_PATH || 'edge-tts';
+    const cmd = `"${edgeTtsPath}" --voice ${voice} --text "${safeText}" --write-media "${outPath}"`;
 
-    await execAsync(cmd, { timeout: 30000 });
+    // Thêm Python Scripts vào PATH nếu chưa có
+    const env = { ...process.env };
+    const pythonScripts = path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python312', 'Scripts');
+    if (fs.existsSync(pythonScripts) && !env.PATH.includes(pythonScripts)) {
+      env.PATH = pythonScripts + ';' + env.PATH;
+    }
+
+    await execAsync(cmd, { timeout: 30000, env });
 
     // Verify file exists
     if (fs.existsSync(outPath) && fs.statSync(outPath).size > 0) {

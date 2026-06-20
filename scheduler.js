@@ -463,6 +463,11 @@ if (!IS_CLOUD_RUN) {
   const EVO_CRON = '0 4 * * *';
   const evoTask = cron.schedule(EVO_CRON, async () => {
     logger.info('[scheduler] EvoAgent analysis triggered');
+    // Session memory cleanup — xóa entries cũ hơn 7 ngày
+    try {
+      const { SessionMemory } = await import('./lib/session_memory.js');
+      SessionMemory.cleanup();
+    } catch { /* optional */ }
     try {
       const { runDailyEvolution } = await import('./agents/EvoAgent.js');
       const result = await runDailyEvolution();

@@ -9,7 +9,9 @@
  *
  * Link validation: check HTTP status trước khi gửi webhook.
  *
- * Usage: node scripts/job_scraper.js
+ * Usage:
+ *   node scripts/job_scraper.js           — normal run
+ *   node scripts/job_scraper.js --reset   — clear cache, re-alert all new jobs
  * Cron: mỗi 6h
  */
 
@@ -24,6 +26,10 @@ const HEADERS = { 'User-Agent': 'Serena/1.0' };
 if (GITHUB_TOKEN) HEADERS['Authorization'] = `token ${GITHUB_TOKEN}`;
 
 const KEYWORDS = /backend|software engineer|swe|devops|fullstack|full.stack|data engineer|ml engineer|ai engineer|node\.js|python|golang|rust/i;
+
+// ── Freshness filter: chỉ giữ jobs updated trong N ngày ──
+const FRESHNESS_DAYS = 14;
+const FRESHNESS_MS = FRESHNESS_DAYS * 24 * 60 * 60 * 1000;
 
 // ── Link Validation ────────────────────────────────────────────────────────
 
@@ -66,8 +72,18 @@ async function fetchSimplifyJobs(repo) {
   const raw = await fetch(info.download_url);
   const listings = JSON.parse(await raw.text());
 
+  const now = Date.now();
   return listings
-    .filter(j => j.active && j.is_visible && KEYWORDS.test(j.title))
+    .filter(j => {
+      if (!j.active || !j.is_visible) return false;
+      if (!KEYWORDS.test(j.title)) return false;
+      // Filter gần hết hạn: chỉ giữ jobs updated trong FRESHNESS_DAYS
+      if (j.date_updated) {
+        const updatedMs = j.date_updated * 1000; // Unix timestamp → ms
+        if (now - updatedMs > FRESHNESS_MS) return false;
+      }
+      return true;
+    })
     .map(j => ({
       id: `simplify:${j.id}`,
       company_name: j.company_name,
@@ -218,7 +234,8 @@ async function sendWebhook(payload) {
 // ── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log('[JobScraper] Starting v2...');
+  const resetCache = process.argv.includes('--reset');
+  console.log(`[JobScraper] Starting v2${resetCache ? ' (CACHE RESET)' : ''}...`);
 
   try {
     // ── Fetch tất cả nguồn song song ──
@@ -241,6 +258,15 @@ async function main() {
     ];
 
     console.log(`[JobScraper] Total fetched: ${allNewJobs.length} jobs`);
+
+    // ── Reset cache nếu --reset flag ──
+    if (resetCache) {
+      const dbReset = new DatabaseSync(DB_PATH);
+      dbReset.exec(`CREATE TABLE IF NOT EXISTS job_cache (key TEXT PRIMARY KEY, value TEXT)`);
+      dbReset.prepare("DELETE FROM job_cache WHERE key='seen_ids'").run();
+      dbReset.close();
+      console.log('[JobScraper] Cache reset — all jobs will be treated as new');
+    }
 
     // ── So sánh với cache ──
     const db = new DatabaseSync(DB_PATH);
