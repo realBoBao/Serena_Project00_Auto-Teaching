@@ -1406,6 +1406,8 @@ export async function answerQuestion(query, options = {}) {
           updateSourcePreference(predictedTopic, 'web', gate.pass ? 0.8 : 0.3);
         }
         const scored = await applyConfidenceScoring({ question: cleanQuery, answer, results: finalResults });
+        // Step 6: Track response quality
+        trackQuality(cleanQuery, scored?.answer, scored, options, predictedTopic);
         return { ...scored, source: 'web', results: finalResults, predictedTopic, sourcesFormatted: formatSourcesWithScore(finalResults, 'web') };
       }
 
@@ -1413,6 +1415,8 @@ export async function answerQuestion(query, options = {}) {
       const fallbackSnippet = formatRetrievedSnippets(finalResults);
       const safe = gate.safeAnswer || `⚠️ Tôi tìm thấy các nguồn sau nhưng chưa chắc chắn:\n\n${fallbackSnippet}`;
       const scored = await applyConfidenceScoring({ question: cleanQuery, answer: safe, results: finalResults });
+      // Step 6: Track response quality
+      trackQuality(cleanQuery, safe, scored, options, predictedTopic);
       return { ...scored, source: 'web-partial', results: finalResults, predictedTopic, sourcesFormatted: formatSourcesWithScore(finalResults, 'web') };
     } catch (llmErr) {
       // LLM synthesize fail → trả về web sources trực tiếp

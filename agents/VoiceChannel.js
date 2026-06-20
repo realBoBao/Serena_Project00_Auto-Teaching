@@ -25,6 +25,36 @@ const execAsync = promisify(exec);
 const _connections = new Map(); // guildId → { connection, player, speaking }
 
 /**
+ * Tìm Python executable path trên Windows/Linux/Mac.
+ * edge-tts cần Python 3.10+.
+ */
+function findPython() {
+  // 1. Check env override
+  if (process.env.PYTHON_PATH && fs.existsSync(process.env.PYTHON_PATH)) {
+    return process.env.PYTHON_PATH;
+  }
+
+  // 2. Common Windows paths
+  if (process.platform === 'win32') {
+    const localAppData = process.env.LOCALAPPDATA || '';
+    const candidates = [
+      path.join(localAppData, 'Programs', 'Python', 'Python312', 'python.exe'),
+      path.join(localAppData, 'Programs', 'Python', 'Python311', 'python.exe'),
+      path.join(localAppData, 'Programs', 'Python', 'Python310', 'python.exe'),
+      'C:\\Python312\\python.exe',
+      'C:\\Python311\\python.exe',
+      'C:\\Python310\\python.exe',
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) return p;
+    }
+  }
+
+  // 3. Try PATH
+  return 'python';
+}
+
+/**
  * Tham gia voice channel.
  * @param {import('discord.js').VoiceChannel} channel
  */
@@ -144,41 +174,42 @@ export function listConnections() {
 
 /**
  * Text-to-Speech bằng edge-tts (miễn phí, không cần API key).
+ * Dùng spawn thay vì exec để tránh PATH issues trên Windows.
  * @param {string} text — Nội dung cần đọc
- * @param {string} [voice='vi-VN-NamNeural'] — Giọng đọc (Vietnamese male)
+ * @param {string} [voice='vi-VN-HoaiMyNeural'] — Giọng đọc (Vietnamese female)
  * @returns {Promise<string>} — Đường dẫn file MP3
  */
-export async function textToSpeech(text, voice = 'vi-VN-HoaiNeural') {
-  try {
-    // Tạo file tạm
-    const tmpDir = os.tmpdir();
-    const outPath = path.join(tmpDir, `tts-${Date.now()}.mp3`);
+export async function textToSpeech(text, voice = 'vi-VN-HoaiMyNeural') {
+  const tmpDir = os.tmpdir();
+  const outPath = path.join(tmpDir, `tts-${Date.now()}.mp3`);
 
-    // Gọi edge-tts — dùng full path vì exec không inherit full PATH trên Windows
-    const safeText = text.replace(/"/g, '\\"').replace(/'/g, "\\'");
-    const edgeTtsPath = process.env.EDGE_TTS_PATH || 'edge-tts';
-    const cmd = `"${edgeTtsPath}" --voice ${voice} --text "${safeText}" --write-media "${outPath}"`;
-
-    // Thêm Python Scripts vào PATH nếu chưa có
-    const env = { ...process.env };
-    const pythonScripts = path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python312', 'Scripts');
-    if (fs.existsSync(pythonScripts) && !env.PATH.includes(pythonScripts)) {
-      env.PATH = pythonScripts + ';' + env.PATH;
-    }
-
-    await execAsync(cmd, { timeout: 30000, env });
-
-    // Verify file exists
-    if (fs.existsSync(outPath) && fs.statSync(outPath).size > 0) {
-      logger.info(`[Voice] TTS generated: ${outPath}`);
-      return outPath;
-    }
-
-    throw new Error('TTS output file is empty');
-  } catch (err) {
-    logger.error(`[Voice] TTS failed: ${err.message}`);
+  // Tìm python executable
+  const pythonPath = findPython();
+  if (!pythonPath) {
+    logger.error('[Voice] Python not found. Install Python 3.10+ and: pip install edge-tts');
     return null;
   }
+
+  return new Promise((resolve) => {
+    const args = ['-m', 'edge_tts', '--voice', voice, '--text', text, '--write-media', outPath];
+    const proc = spawn(pythonPath, args, { env: process.env, windowsHide: true });
+
+    let stderr = '';
+    proc.stderr.on('data', d => { stderr += d.toString(); });
+    proc.on('close', code => {
+      if (code === 0 && fs.existsSync(outPath) && fs.statSync(outPath).size > 0) {
+        logger.info(`[Voice] TTS generated: ${outPath} (${fs.statSync(outPath).size} bytes)`);
+        resolve(outPath);
+      } else {
+        logger.error(`[Voice] TTS failed: code=${code}, stderr=${stderr.slice(0, 200)}`);
+        resolve(null);
+      }
+    });
+    proc.on('error', err => {
+      logger.error(`[Voice] TTS spawn error: ${err.message}`);
+      resolve(null);
+    });
+  });
 }
 
 /**

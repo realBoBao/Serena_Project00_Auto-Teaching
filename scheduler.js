@@ -628,6 +628,28 @@ if (!IS_CLOUD_RUN) {
   algoTask.start();
   algoAnswerTask.start();
 
+  // ── Step 5: Morning Health Check — 8:00 AM PDT ──
+  const healthTask = cron.schedule('0 8 * * *', async () => {
+    logger.info('[Scheduler] Morning health check triggered');
+    try {
+      const { runHealthCheck, formatHealthMessage } = await import('./lib/health_check.js');
+      const result = await runHealthCheck();
+      const message = formatHealthMessage(result);
+
+      // Gửn Discord alert nếu có issues
+      if (!result.healthy) {
+        const { sendWebhook } = await import('./lib/webhook.js');
+        await sendWebhook(process.env.DISCORD_WEBHOOK_URL, {
+          embeds: [{ color: 0xffaa00, title: message, timestamp: new Date().toISOString() }],
+        });
+      }
+      logger.info(`[Scheduler] Health check: ${result.healthy ? 'HEALTHY' : `${result.errors.length} issues`}`);
+    } catch (err) {
+      logger.error('[Scheduler] Health check error:', err?.message || err);
+    }
+  }, { timezone: 'America/Los_Angeles' });
+  healthTask.start();
+
   logger.info('[Scheduler] All node-cron jobs started');
 } // end if (!IS_CLOUD_RUN)
 
