@@ -660,6 +660,36 @@ async function hybridLocalRetrieval(query, biasTopic, category = null) {
  *
  * Ngoài ra giữ lại YouTube + GitHub search riêng (đã có API key).
  */
+
+/**
+ * Filter search results: Loại YouTube Shorts + entertainment + meme
+ * Chỉ giữ lại nội dung học thuật, tutorial, documentation.
+ */
+function filterSearchResults(results) {
+  return results.filter(r => {
+    const url = (r.url || r.link || '').toLowerCase();
+    const title = (r.title || '').toLowerCase();
+
+    // Loại YouTube Shorts
+    if (url.includes('youtube.com/shorts') || url.includes('/shorts/')) return false;
+
+    // Loại video dưới 3 phút (thường là meme/entertainment)
+    if (r.duration && r.duration < 180) return false;
+
+    // Loại kết quả có title dạng meme/humor
+    const memeSignals = ['#short', '#shorts', 'be like', 'vs junior', 'intern on first day', 'meme', 'funny', 'prank', 'cute', 'pet', 'animal'];
+    if (memeSignals.some(s => title.includes(s))) return false;
+
+    // Boost cho GitHub repos (thường relevant hơn YouTube với query kỹ thuật)
+    if (url.includes('github.com')) r.score = (r.score || 0.5) * 1.3;
+
+    // Boost cho kết quả có từ khóa khớp query
+    // (đã có trong scoring logic, nhưng đây là extra safety)
+
+    return true;
+  });
+}
+
 async function webScout(query) {
   const allResults = [];
 
@@ -719,8 +749,11 @@ async function webScout(query) {
   // Lưu query fingerprint cho lần sau
   saveQueryFingerprint(queryFingerprint);
 
-  logger.info(`[WebScout] Total: ${deduped.length} results (YouTube + GitHub + Hybrid)`);
-  return deduped.slice(0, webSearchLimit);
+  // ── Filter: Loại YouTube Shorts + entertainment ──
+  const filtered = filterSearchResults(deduped);
+
+  logger.info(`[WebScout] Total: ${deduped.length} results → ${filtered.length} after filter (YouTube Shorts + entertainment removed)`);
+  return filtered.slice(0, webSearchLimit);
 }
 
 // ─── Query Deduplication ───────────────────────────────────
