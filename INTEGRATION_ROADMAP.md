@@ -29,6 +29,24 @@
 
 ---
 
+## ✅ ĐÃ HOÀN THÀNH — Bổ sung (21/06/2026)
+
+| # | Tên | Tier |
+|---|-----|------|
+| 16 | **Response Caching** (in-memory, 5min TTL, 500 entries) — Giảm API calls cho câu hỏi trùng | 2 |
+| 17 | **Context Compression** (`summarizeContext()`) — Giảm 70% token cho long contexts | 1 |
+| 18 | **Agent Usage Tracking** (`_trackAgentCall`, `getDetailedAgentUsage`, `getUnusedAgents`) — Biết agent nào đang "chết" | 5 |
+| 19 | **Circuit Breaker** (`orchestrator_guard.js`) — RouterAgent fail 5 lần → bypass, fallback response | 6 |
+| 20 | **Health Check** (`health_check.js`) — Auto check LLM, Vector DB, Discord mỗi sáng | 5 |
+| 21 | **node:sqlite Migration** — `$param` syntax, Date binding, array params (thay vì `?` placeholders) | — |
+| 22 | **flashcard_db.js Rewrite** — Fix SQL compatibility, add missing exports (`clearAll`, `deleteFlashcard`, etc.) | — |
+| 23 | **!agentstats Enhanced** — Show detailed usage + unused agents warning | 5 |
+| 24 | **!help Bypass Middleware** — Move to top of MessageCreate handler, bypass rate limit/dedup | — |
+
+**Tests: 12 suites, 200+ tests passed ✅**
+
+---
+
 ## 🔴 TIER 1 — HIGH Impact, LOW Effort (làm ngay)
 
 ### 1. Hybrid Search: BM25 + Vector (RRF fusion)
