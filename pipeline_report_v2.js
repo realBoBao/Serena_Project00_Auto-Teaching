@@ -42,7 +42,6 @@ const YOUTUBE_SEARCH_URL = 'https://www.googleapis.com/youtube/v3/search';
 
 const GITHUB_PER_PAGE = Number(process.env.GITHUB_PER_PAGE || 3);
 const GITHUB_MIN_STARS = Number(process.env.GITHUB_MIN_STARS || 10);
-const GITHUB_CREATED_AFTER = process.env.GITHUB_CREATED_AFTER || '2020-01-01';
 const YOUTUBE_MAX_RESULTS = Number(process.env.YOUTUBE_MAX_RESULTS || 3);
 const YOUTUBE_MIN_VIEWS = Number(process.env.YOUTUBE_MIN_VIEWS || 50000);
 const YOUTUBE_ORDER = process.env.YOUTUBE_ORDER || 'viewCount';
@@ -142,11 +141,11 @@ async function pickUniqueTopic() {
   await fs.writeFile(TOPIC_HISTORY_FILE, JSON.stringify({ [today]: [] }, null, 2), 'utf8');
   return DEV_TOPICS[Math.floor(Math.random() * DEV_TOPICS.length)];
 }
-async function githubSearch(topic, perPage = GITHUB_PER_PAGE, minStars = GITHUB_MIN_STARS, createdAfter = GITHUB_CREATED_AFTER){
+async function githubSearch(topic, perPage = GITHUB_PER_PAGE, minStars = GITHUB_MIN_STARS){
   return retry(
     () => hedge(
       async (signal) => {
-        const q = `${topic} stars:>=${minStars} created:>=${createdAfter}`;
+        const q = `${topic} stars:>=${minStars}`;
         const url = `${GITHUB_SEARCH_URL}?q=${encodeURIComponent(q)}&sort=stars&order=desc&per_page=${perPage}`;
         const res = await fetchWithRetry(url, {
           headers: process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {},
