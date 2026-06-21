@@ -95,24 +95,53 @@ async function saveTopicHistory(topic) {
   } catch { /* ignore */ }
 }
 
+// Extended topic pool — dùng khi chạy hết DEV_TOPICS
+const EXTENDED_TOPICS = [
+  'rust programming language',
+  'golang concurrency patterns',
+  'typescript advanced types',
+  'python asyncio deep dive',
+  'kubernetes operators',
+  'terraform modules',
+  'graphql schema design',
+  'event-driven architecture',
+  'CQRS and event sourcing',
+  'database sharding strategies',
+  'API gateway patterns',
+  'service mesh istio',
+  'observability prometheus grafana',
+  'chaos engineering practices',
+  'LLM fine-tuning techniques',
+  'RAG architecture patterns',
+  'vector database comparison',
+  'multi-agent AI systems',
+  'WebAssembly performance',
+  'edge computing architecture',
+];
+
 async function pickUniqueTopic() {
   const history = await loadTopicHistory();
-  const available = DEV_TOPICS.filter(t => !history.includes(t));
-  // Nếu tất cả topics đã chạy → reset history
-  if (available.length === 0) {
-    console.log('[Pipeline] All topics ran today — resetting history');
-    const today = new Date().toISOString().slice(0, 10);
-    const history = {};
-    history[today] = [];
-    await fs.writeFile(TOPIC_HISTORY_FILE, JSON.stringify(history, null, 2), 'utf8');
-    return DEV_TOPICS[Math.floor(Math.random() * DEV_TOPICS.length)];
+  const devAvailable = DEV_TOPICS.filter(t => !history.includes(t));
+  
+  // Nếu còn DEV_TOPICS chưa chạy → random từ đó
+  if (devAvailable.length > 0) {
+    return devAvailable[Math.floor(Math.random() * devAvailable.length)];
   }
-  return available[Math.floor(Math.random() * available.length)];
+  
+  // Nếu chạy hết DEV_TOPICS → random thêm 1 từ EXTENDED_TOPICS
+  const extAvailable = EXTENDED_TOPICS.filter(t => !history.includes(t));
+  if (extAvailable.length > 0) {
+    const topic = extAvailable[Math.floor(Math.random() * extAvailable.length)];
+    console.log('[Pipeline] All DEV_TOPICS ran — picking from extended pool:', topic);
+    return topic;
+  }
+  
+  // Nếu chạy hết cả 2 → reset và random lại
+  console.log('[Pipeline] All topics exhausted — resetting history');
+  const today = new Date().toISOString().slice(0, 10);
+  await fs.writeFile(TOPIC_HISTORY_FILE, JSON.stringify({ [today]: [] }, null, 2), 'utf8');
+  return DEV_TOPICS[Math.floor(Math.random() * DEV_TOPICS.length)];
 }
-
-
-
-
 async function githubSearch(topic, perPage = GITHUB_PER_PAGE, minStars = GITHUB_MIN_STARS, createdAfter = GITHUB_CREATED_AFTER){
   return retry(
     () => hedge(
@@ -563,6 +592,26 @@ async function fetchVideoAndAnalyze(video){
 }
 
 async function run(topic = null, isForce = false){
+  // ── Dedup: Kiểm tra query đã gửi trong ngày ──
+  const DEDUP_FILE = './.query_dedup.json';
+  async function isQuerySentToday(q) {
+    try {
+      const data = JSON.parse(await fs.readFile(DEDUP_FILE, 'utf8'));
+      const today = new Date().toISOString().slice(0, 10);
+      return data[today]?.includes(q.toLowerCase().trim());
+    } catch { return false; }
+  }
+  async function markQuerySent(q) {
+    try {
+      let data = {};
+      try { data = JSON.parse(await fs.readFile(DEDUP_FILE, 'utf8')); } catch {}
+      const today = new Date().toISOString().slice(0, 10);
+      if (!data[today]) data[today] = [];
+      data[today].push(q.toLowerCase().trim());
+      await fs.writeFile(DEDUP_FILE, JSON.stringify(data, null, 2), 'utf8');
+    } catch { /* ignore */ }
+  }
+
   // ── Chọn topic: ưu tiên từ env/args, nếu không thì pick unique từ history ──
   let chosenTopic;
   if (topic && String(topic).trim()) {
@@ -1130,7 +1179,35 @@ async function run(topic = null, isForce = false){
           bullets: `${freshResults.length} sources found across YouTube, GitHub, StackOverflow, HackerNews, arXiv, Facebook`,
         });
         console.log(`[Webhook] ✓ Sent aggregated embed with ${freshResults.length} sources`);
-      } else if ((allResults?.length || 0) > 0) {
+      } else {
+        // ── Fallback: Không có source mới → lấy cũ nhất từ DB phù hợp query ──
+        console.log('[Pipeline] No new sources — fetching oldest from DB for query:', chosenTopic);
+        try {
+          const { getSourcesByQuery } = await import('./lib/vector_store.js');
+          const cachedSources = await getSourcesByQuery(chosenTopic, 10);
+          if (cachedSources.length > 0) {
+            const fallbackResults = cachedSources.map(s => ({
+              title: s.project || s.doc_id || 'Cached Source',
+              url: s.url || '',
+              type: 'cached',
+              score: 0.5,
+              category: s.category || 'Backend',
+            }));
+            await sendAggregatedWebhook({
+              topic: chosenTopic + ' (Cached — No new sources)',
+              results: fallbackResults,
+              bullets: fallbackResults.length + ' sources từ cache (oldest first)',
+              isError: false,
+            });
+            console.log('[Webhook] ✓ Sent ' + fallbackResults.length + ' cached sources from DB');
+          } else {
+            console.log('[Pipeline] No cached sources found either');
+          }
+        } catch (cacheErr) {
+          console.warn('[Pipeline] Cache fallback failed:', cacheErr.message);
+        }
+      }
+      if ((allResults?.length || 0) > 0 && freshResults.length === 0) {
         // Không có source → gửi thông báo server status (để biết pipeline đã chạy)
         const errorSources = [];
         if (repos.length === 0) errorSources.push('GitHub');
