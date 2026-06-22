@@ -1,10 +1,13 @@
-# Tech News Digest — 11AM + 5PM PDT (18:00 + 00:00 UTC)
+# Tech News Digest — 5x/day PDT (8AM, 11AM, 2PM, 5PM, 8PM)
 name: 📰 Tech News
 
 on:
   schedule:
-    - cron: '0 18 * * *'  # 11AM PDT daily
-    - cron: '0 0 * * *'   # 5PM PDT daily (00:00 UTC next day)
+    - cron: '0 15 * * *'  # 8AM PDT
+    - cron: '0 18 * * *'  # 11AM PDT
+    - cron: '0 21 * * *'  # 2PM PDT
+    - cron: '0 0 * * *'   # 5PM PDT (00:00 UTC next day)
+    - cron: '0 3 * * *'   # 8PM PDT (03:00 UTC next day)
   workflow_dispatch:
     inputs:
       topic:
