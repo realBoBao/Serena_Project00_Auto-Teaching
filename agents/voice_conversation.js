@@ -23,7 +23,7 @@ import {
   EndBehaviorType,
 } from '@discordjs/voice';
 import { getLogger } from '../lib/logger.js';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -48,7 +48,6 @@ function findPython() {
     for (const p of candidates) if (fs.existsSync(p)) return p;
   }
   // Linux: try python3 first, then python
-  const { execSync } = require('child_process');
   try { execSync('which python3', { stdio: 'pipe' }); return 'python3'; } catch {}
   try { execSync('which python', { stdio: 'pipe' }); return 'python'; } catch {}
   return 'python3'; // fallback
