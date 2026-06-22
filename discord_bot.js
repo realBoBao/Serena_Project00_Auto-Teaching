@@ -285,15 +285,15 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
 
     // Try to speak in voice channel if bot is connected
     try {
-      const { isConnected, speakInChannel, joinChannel } = await import('./agents/voice_conversation.js');
+      const { isConnected, speakInChannel, joinChannel, isManuallyDisconnected } = await import('./agents/voice_conversation.js');
       if (isConnected(guildId)) {
         logger.info(`[Voice] Bot already in VC, speaking hello to ${userName}...`);
         const speakResult = await speakInChannel(guildId, `Xin chào ${userName}! Chào mừng bạn đến voice channel.`);
         logger.info(`[Voice] speakInChannel result: ${JSON.stringify(speakResult)}`);
         return;
       }
-      // Bot not connected — try to auto-join and greet
-      if (newState.channel) {
+      // Bot not connected — try to auto-join and greet (but not if manually disconnected)
+      if (newState.channel && !vc.isManuallyDisconnected(guildId)) {
         logger.info(`[Voice] Bot not in VC, auto-joining ${channelName}...`);
         const result = await joinChannel(newState.channel);
         logger.info(`[Voice] joinChannel result: ${JSON.stringify(result)}`);

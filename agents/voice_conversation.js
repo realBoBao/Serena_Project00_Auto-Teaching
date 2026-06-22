@@ -200,6 +200,7 @@ export async function joinChannel(channel) {
       speaking: false,
       listening: false,
       audioBuffers: new Map(), // userId → Buffer[]
+      manuallyDisconnected: false, // flag to prevent auto-rejoin
     });
 
     connection.on(VoiceConnectionStatus.Disconnected, () => {
@@ -224,6 +225,9 @@ export async function joinChannel(channel) {
   }
 }
 
+// Track manually disconnected guilds to prevent auto-rejoin
+const _manuallyDisconnected = new Set();
+
 export function leaveChannel(guildId) {
   const entry = _connections.get(guildId);
   if (!entry) {
@@ -235,14 +239,23 @@ export function leaveChannel(guildId) {
     try { entry.connection?.disconnect?.(); } catch { /* ignore */ }
     try { entry.connection?.destroy?.(); } catch { /* ignore */ }
     _connections.delete(guildId);
-    logger.info(`[Voice] Left: ${guildId}`);
+    _manuallyDisconnected.add(guildId); // Mark as manually disconnected
+    logger.info(`[Voice] Left: ${guildId} (manual disconnect)`);
     return { success: true };
   } catch (err) {
     logger.error(`[Voice] Leave error: ${err.message}`);
-    // Force cleanup even on error
     _connections.delete(guildId);
+    _manuallyDisconnected.add(guildId);
     return { success: false, error: err.message };
   }
+}
+
+export function isManuallyDisconnected(guildId) {
+  return _manuallyDisconnected.has(guildId);
+}
+
+export function clearManualDisconnect(guildId) {
+  _manuallyDisconnected.delete(guildId);
 }
 
 // ── Play Audio in Channel ──
