@@ -10,8 +10,6 @@
  */
 
 import 'dotenv/config';
-import fs from 'fs/promises';
-import path from 'path';
 
 const TECH_WEBHOOK = process.env.TECH_WEBHOOK_URL || process.env.DISCORD_WEBHOOK;
 if (!TECH_WEBHOOK) { console.error('❌ TECH_WEBHOOK_URL not set'); process.exit(1); }
@@ -24,32 +22,7 @@ const TECH_TOPICS = [
   'networking', 'open source', 'edge computing', 'IoT',
 ];
 
-const TOPIC_HISTORY = path.resolve('./.topic_history.json');
-const CATCHUP_FILE = path.resolve('./.tech_news_catchup.json');
-
-function loadHistorySync() {
-  try { return JSON.parse(require('fs').readFileSync(TOPIC_HISTORY, 'utf8'))[new Date().toISOString().slice(0, 10)] || []; }
-  catch { return []; }
-}
-
-async function saveHistory(topic) {
-  try {
-    let d = {}; try { d = JSON.parse(await fs.readFile(TOPIC_HISTORY, 'utf8')); } catch {}
-    const t = new Date().toISOString().slice(0, 10);
-    if (!d[t]) d[t] = [];
-    d[t].push({ topic, ts: new Date().toISOString() });
-    await fs.writeFile(TOPIC_HISTORY, JSON.stringify(d, null, 2), 'utf8');
-  } catch { /* ignore */ }
-}
-
-async function wasSent(topic) {
-  // Check local file first (works on persistent servers)
-  try {
-    const local = JSON.parse(await fs.readFile(CATCHUP_FILE, 'utf8'));
-    if (local[new Date().toISOString().slice(0, 10)]?.includes(topic)) return true;
-  } catch { /* ignore */ }
-
-  // Check Discord channel history (works on GitHub Actions / ephemeral VMs)
+// ── Dedup: chỉ dùng Discord history (hoạt động trên cả VPS và GitHub Actions)
   try {
     const webhookMatch = TECH_WEBHOOK.match(/webhooks\/(\d+)\//);
     if (webhookMatch) {
@@ -81,22 +54,7 @@ async function wasSent(topic) {
   return false;
 }
 
-async function markSent(topic) {
-  try {
-    let d = {}; try { d = JSON.parse(await fs.readFile(CATCHUP_FILE, 'utf8')); } catch {}
-    const t = new Date().toISOString().slice(0, 10);
-    if (!d[t]) d[t] = [];
-    d[t].push(topic);
-    await fs.writeFile(CATCHUP_FILE, JSON.stringify(d, null, 2), 'utf8');
-  } catch { /* ignore */ }
-}
 
-function pickTopic() {
-  const history = loadHistorySync();
-  const avail = TECH_TOPICS.filter(t => !history.includes(t));
-  const pool = avail.length ? avail : TECH_TOPICS;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
 
 async function fetchHN(query, limit = 10) {
   try {
@@ -138,15 +96,18 @@ async function fetchArXiv(query, limit = 5) {
   } catch { return []; }
 }
 
+function pickRandomTopic() {
+  return TECH_TOPICS[Math.floor(Math.random() * TECH_TOPICS.length)];
+}
+
 async function main() {
-  const topic = process.argv[2] || pickTopic();
+  const topic = process.argv[2] || pickRandomTopic();
 
   if (await wasSent(topic)) {
     console.log(`[TechNews] Already sent "${topic}" today — skip`);
     return;
   }
 
-  await saveHistory(topic);
   console.log(`[TechNews] Fetching: "${topic}"`);
 
   const [hn, reddit, github, arxiv] = await Promise.all([
