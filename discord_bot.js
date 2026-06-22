@@ -431,66 +431,67 @@ client.on(Events.MessageCreate, async (message) => {
         const { EmbedBuilder } = await import('discord.js');
         const helpEmbed = new EmbedBuilder()
           .setColor(0x7F77DD)
-          .setTitle('📋 Danh sách lệnh AI Brain v7.0')
+          .setTitle('📋 AI Brain v7.0 — Command Reference')
           .setDescription(
-            '**🔍 Hỏi đáp & Tìm kiếm:**\n' +
-            '`!ask <câu hỏi>` — Hỏi AI (RAG + Web Search)\n' +
-            '`!ask <câu hỏi> --deep` — Tìm kiếm sâu\n\n' +
-            '**💻 Code & Thuật toán:**\n' +
-            '`!run <code>` — Chạy code trong Sandbox\n' +
-            '`!code <bài toán>` — Viết + chạy code\n' +
-            '`!debate <bài toán>` — Tranh luận đa tác nhân\n' +
-            '`!cli <tool>` — Tìm lệnh CLI (0% hallucination)\n\n' +
-            '**📚 Học tập & Ôn tập:**\n' +
-            '`!quiz` — Ôn tập flashcard (FSRS)\n' +
-            '`!quiz stats` — Xem thống kê\n' +
-            '`!answer <id> <đáp án>` — Trả lời flashcard\n' +
-            '`!learn <url>` — Học từ URL/PDF\n' +
-            '`!path <topic>` — Tạo lộ trình học\n' +
-            '`!cs <subject>` — Học CS theo chủ đề\n' +
-            '`!cs list` — Xem danh sách môn CS\n' +
-            '`!gaps` — Xem lỗ hổng kiến thức\n' +
-            '`!resources <keyword>` — Tìm free DevOps resources\n\n' +
-            '**🔍 Phân tích & Kiểm tra:**\n' +
-            '`!analyze <code>` — Phân tích code\n' +
-            '`!audit <code>` — Quét bảo mật\n' +
-            '`!perf <code>` — Phân tích performance\n' +
-            '`!logs <text>` — Phân tích logs\n\n' +
-            '**⚙️ Tuỳ chọn:**\n' +
-            '`!profile` — Xem hồ sơ học tập\n' +
-            '`!preferences show` — Xem tuỳ chọn\n' +
-            '`!preferences model openrouter|gemini|auto` — Chọn model\n\n' +
-            '**🎨 Sáng tạo:**\n' +
-            '`!animate <mô tả>` — Tạo video animation\n\n' +
-            '**👁️ Đa giác quan:**\n' +
-            '`!vision` + ảnh — Phân tích ảnh\n' +
-            '`!voice` + audio — Transcribe giọng nói\n\n' +
-            '**🧠 Nâng cao:**\n' +
+            '**🔍 Q&A & Search:**\n' +
+            '`!ask <question>` — Ask AI (RAG + Web Search)\n' +
+            '`!ask <question> --deep` — Deep search (8 sources)\n\n' +
+            '**💻 Code & Algorithms:**\n' +
+            '`!run <code>` — Run code in Sandbox\n' +
+            '`!code <problem>` — Write + run code\n' +
+            '`!debate <problem>` — Multi-agent debate\n' +
+            '`!cli <tool>` — Find CLI command (0% hallucination)\n\n' +
+            '**📚 Learning & Review:**\n' +
+            '`!quiz` — Spaced repetition flashcards (FSRS)\n' +
+            '`!quiz stats` — View statistics\n' +
+            '`!answer <id> <answer>` — Answer flashcard\n' +
+            '`!learn <url>` — Learn from URL/PDF\n' +
+            '`!path <topic>` — Generate learning path\n' +
+            '`!cs <subject>` — CS curriculum by topic\n' +
+            '`!cs list` — List CS subjects\n' +
+            '`!gaps` — View knowledge gaps\n' +
+            '`!resources <keyword>` — Find free DevOps resources\n\n' +
+            '**🔍 Analysis & Audit:**\n' +
+            '`!analyze <code>` — Code quality analysis\n' +
+            '`!audit <code>` — Security scan\n' +
+            '`!perf <code>` — Performance profiling\n' +
+            '`!logs <text>` — Log analysis\n\n' +
+            '**⚙️ Preferences:**\n' +
+            '`!profile` — View learning profile\n' +
+            '`!preferences show` — View preferences\n' +
+            '`!preferences model openrouter|gemini|auto` — Select model\n\n' +
+            '**🎨 Creative:**\n' +
+            '`!animate <description>` — Generate animation video\n\n' +
+            '**👁️ Multimodal:**\n' +
+            '`!vision` + image — Analyze image\n' +
+            '`!voice` + audio — Transcribe speech\n\n' +
+            '**🧠 Advanced:**\n' +
             '`!review` — Shadow Review\n' +
             '`!incident` — Chaos Engineering\n' +
-            '`!memory <nội dung>` — Lưu trí nhớ\n' +
-            '`!f1stats` — F1 Score Dashboard\n\n' +
+            '`!memory <content>` — Save memory\n' +
+            '`!f1stats` — F1 Score Dashboard\n' +
+            '`!done` — Mark algo problem as solved\n\n' +
             '**🎙️ Voice:**\n' +
-            '`!join` — Tham gia voice channel\n' +
-            '`!leave` — Rời voice channel\n' +
-            '`!vc on` — Bật voice conversation\n' +
-            '`!vc off` — Tắt voice conversation\n' +
-            '`!voice study` — Chế độ học (im lặng)\n\n' +
-            '**⚙️ Hệ thống:**\n' +
-            '`!plugins` — Xem plugins\n' +
+            '`!join` — Join voice channel\n' +
+            '`!leave` — Leave voice channel\n' +
+            '`!vc on` — Enable voice conversation\n' +
+            '`!vc off` — Disable voice conversation\n' +
+            '`!voice study` — Study mode (silent)\n\n' +
+            '**⚙️ System:**\n' +
+            '`!plugins` — List plugins\n' +
             '`!plugin unload <name>` — Unload plugin\n' +
-            '`!agentstats` — Thống kê sử dụng agents\n\n' +
+            '`!agentstats` — Agent usage statistics\n\n' +
             '**💼 Career & Interview:**\n' +
-            '`!draft <JD text>` — Soạn thảo outreach (3 versions)\n' +
+            '`!draft <JD text>` — Draft outreach (3 versions)\n' +
             '`!interview start` — Mock interview\n' +
-            '`!interview end` — Kết thúc mock interview\n\n' +
+            '`!interview end` — End mock interview\n\n' +
             '**🤖 Serena** — AI Robot Girl Companion | MIT License'
           )
-          .setFooter({ text: 'Gõ !help <category> để xem chi tiết. Ví dụ: !help code' });
-        return message.channel.send({ embeds: [helpEmbed] }).catch(err => console.error('Lỗi gửi help:', err));
+          .setFooter({ text: 'Type !help <category> for details. Example: !help code' });
+        return message.channel.send({ embeds: [helpEmbed] }).catch(err => console.error('Help send error:', err));
       } catch (err) {
         console.error('Help embed error:', err);
-        return message.channel.send('📋 Lỗi khi gửi menu help. Vui lòng thử lại.');
+        return message.channel.send('📋 Error sending help menu. Please try again.');
       }
     }
 

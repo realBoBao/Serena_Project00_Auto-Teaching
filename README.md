@@ -1,6 +1,6 @@
 # My AI Brain — Serena, AI Robot Girl Companion
 
-> Hệ thống AI đa tác nhân tự học, tự tiến hóa, tự bảo mật.
+> Multi-agent AI system that self-learns, self-evolves, and self-secures.
 > **VPS/PM2 Production | Ponytail Optimized**
 > **197 tests PASS | 20 Agents | 7-tier RAG | Plugin System | Career Agent**
 
@@ -32,116 +32,148 @@ SQLite Vector Store (domain-filtered) + BM25 + Knowledge Graph
 
 ## Discord Commands
 
-### Hỏi đáp & Tìm kiếm
+### Q&A & Search
 ```
-!ask <câu hỏi>              → RAG-powered Q&A (7-tier pipeline)
-!ask <câu hỏi> --deep       → Deep search (8 results, 5 web sources)
-!learn <url>                → Học từ URL/PDF
-!path <topic>               → Learning Path (Dễ → Khó, từ KG)
-!path <topic> --short       → Chỉ 5 bước tiếp theo
-!path <topic> --gaps        → Chỉ topic cần học
-!recap <topic>              → Tóm tắt bài học
-!history <topic>            → Xem facts gần đây từ KG
-!whenwas <topic> [date]     → Query KG tại thời điểm cụ thể
-!memory <nội dung>           → Lưu trí nhớ cá nhân
-```
-
-### Code & Thuật toán
-```
-!run <code>                 → Chạy code trong Sandbox
-!code <bài toán>            → Viết + chạy code tự động
-!debate <bài toán>          → Multi-agent debate
-!analyze <code>             → Phân tích chất lượng code
-!audit <code>               → Quét bảo mật code
-!perf <code>                → Phân tích performance
-!logs <text>                → Phân tích logs
-!review                     → Shadow Review (ôn code cũ)
-!incident                   → Chaos Engineering
+!ask <question>              → RAG-powered Q&A (7-tier pipeline)
+!ask <question> --deep       → Deep search (8 results, 5 web sources)
+!learn <url>                 → Learn from URL/PDF
+!path <topic>                → Generate learning path (Easy → Hard, from KG)
+!path <topic> --short        → Only 5 next steps
+!path <topic> --gaps         → Only topics to learn
+!recap <topic>               → Generate learning recap
+!history <topic>             → View recent facts from KG
+!whenwas <topic> [date]      → Query KG at specific point in time
+!memory <content>            → Save personal memory
 ```
 
-### Voice Channel
+### Code & Algorithms
 ```
-!join                       → Tham gia voice channel
-!leave                      → Rời voice channel
-!vc on                      → Bật voice conversation (nghe & nói tự nhiên)
-!vc off                     → Tắt voice conversation
-!voice study                → Bật chế độ học (bot im lặng)
-!voice stop                 → Tắt chế độ học
-!voice + audio              → Transcribe giọng nói (whisper.cpp)
-
-**Voice Conversation Flow:**
-1. `!join` → Bot vào voice channel
-2. `!vc on` → Bật chế độ nghe & nói
-3. Bạn nói gì đó → Bot nghe (Whisper STT) → LLM trả lời → Bot nói (edge-tts giọng nữ)
-4. `!vc off` → Tắt / `!leave` → Bot rời
-
-⚠️ Cần enable `whisper-large-v3-turbo` tại https://console.groq.com/settings/project/limits
+!run <code>                  → Run code in Sandbox
+!code <problem>              → Write + run code
+!debate <problem>            → Multi-agent debate
+!cli <tool>                  → Find CLI command (0% hallucination)
+!done                        → Mark algo problem as solved
 ```
 
-### Học tập
+### Learning & Review
 ```
-!quiz                       → Flashcard quiz (FSRS)
-!quiz stats                 → Thống kê flashcard
-!answer <id> <đáp án>       → Trả lời flashcard
-!f1stats                    → F1 Score Dashboard
-!profile                    → Hồ sơ học tập
-!preferences                → Tùy chọn model/sources/learning
-!prefer <style>             → Phong cách học (example_first | theory_first | code_heavy)
-```
-
-### Sáng tạo
-```
-!animate <mô tả>            → Tạo video animation (Manim)
-!vision + ảnh               → Phân tích ảnh (Gemini Vision)
+!quiz                        → Spaced repetition flashcards (FSRS)
+!quiz stats                  → View statistics
+!answer <id> <answer>        → Answer flashcard
+!learn <url>                 → Learn from URL/PDF
+!path <topic>                → Generate learning path
+!cs <subject>                → CS curriculum by topic
+!cs list                     → List CS subjects
+!gaps                        → View knowledge gaps
+!resources <keyword>         → Find free DevOps resources
 ```
 
-### Hệ thống
+### Analysis & Audit
 ```
-!schedule                   → Đồng bộ thời khóa biểu
-!plugins                    → Danh sách plugins
-!resources                  → Tài nguyên hệ thống
-!cli <command>              → Chạy CLI command
-!agentstats                 → Thống kê sử dụng agents
-!gaps                       → Xem knowledge gaps
-!cs                         → Xem CS curriculum
-!help                       → Danh sách lệnh
+!analyze <code>              → Code quality analysis
+!audit <code>                → Security scan
+!perf <code>                 → Performance profiling
+!logs <text>                 → Log analysis
+```
+
+### Creative
+```
+!animate <description>       → Generate animation video
+```
+
+### Multimodal
+```
+!vision + image              → Analyze image
+!voice + audio               → Transcribe speech
+```
+
+### Advanced
+```
+!review                      → Shadow Review
+!incident                    → Chaos Engineering
+!memory <content>            → Save memory
+!f1stats                     → F1 Score Dashboard
+```
+
+### Voice
+```
+!join                        → Join voice channel
+!leave                       → Leave voice channel
+!vc on                       → Enable voice conversation
+!vc off                      → Disable voice conversation
+!voice study                 → Study mode (silent)
+```
+
+### System
+```
+!plugins                     → List plugins
+!plugin unload <name>        → Unload plugin
+!agentstats                  → Agent usage statistics
 ```
 
 ### Career & Interview
 ```
-!draft <JD text>            → Soạn thản outreach (3 versions)
-!interview start            → Mock interview với Staff Engineer
-!interview end              → Kết thúc mock interview
-```
-
-### Daily Algo Bot (Webhook)
-```
-8:00 AM daily                → Gửi bài thuật toán vào #daily-algo
-23:59 PM daily               → Gửi đáp án nếu chưa !done
-!done                        → Đánh dãu giải xong, skip đáp án
-```
-
-### Job Bot (Webhook)
-```
-Mỗi 6h                       → Scrape SimplifyJobs → gửi #job-alerts
-```
-
-### Camera (Web UI)
-```
-📷 Camera tab               → Nhận diện cảm xúc (demo mode)
+!draft <JD text>             → Draft outreach (3 versions)
+!interview start             → Mock interview
+!interview end               → End mock interview
 ```
 
 ---
 
-## Quick Start (VPS/PM2)
+## Agents (20 Total)
 
-```bash
-git clone https://github.com/realBoBao/Serena_The-Accountant.git
-cd Serena_The-Accountant
-npm install
-cp .env.example .env
-# Edit .env with your API keys
-npm test
-pm2 start ecosystem.config.cjs
-pm2 save
-```
+| Agent | Status | Description |
+|-------|--------|-------------|
+| `RagAgent` | ✅ Active | RAG-powered Q&A, web search, knowledge retrieval |
+| `CoderAgent` | ✅ Active | Write + run code with debug loop |
+| `SocraticAgent` | ✅ Active | Socratic learning method |
+| `DebateAgent` | ✅ Active | Multi-agent debate |
+| `VisionAgent` | ✅ Active | Image analysis via Gemini Vision |
+| `VoiceAgent` | ✅ Active | Speech transcription |
+| `ManimAgent` | ✅ Active | Animation video generation |
+| `MentorAgent` | ✅ Active | Shadow Review |
+| `IncidentAgent` | ✅ Active | Chaos Engineering simulator |
+| `AnalysisAgent` | ✅ Active | Code quality analysis |
+| `SecurityAuditor` | ✅ Active | Security scanning |
+| `SuggestionAgent` | ✅ Active | Proactive learning suggestions |
+| `PersonaAgent` | ✅ Active | Persona routing (Therapist vs Technical) |
+| `EvoAgent` | ✅ Active | Self-evolution background agent |
+| `GraphAgent` | ✅ Active | Knowledge graph agent |
+| `PlannerAgent` | ✅ Active | OODA task planner |
+| `OutreachDraftAgent` | ✅ Active | Career outreach drafting |
+| `RecapAgent` | ✅ Active | Learning recap generation |
+| `ActionableAgent` | ✅ Active | Actionable insights |
+| `PdfAgent` | ✅ Active | PDF processing |
+
+---
+
+## Cron Jobs (GitHub Actions)
+
+| Job | Schedule | Description |
+|-----|----------|-------------|
+| `algo-daily` | 8AM PDT daily | Daily LeetCode problem → Discord |
+| `tech-news` | 5x/day PDT | HN + Reddit + GitHub trending → Discord |
+| `job-scraper` | 3x/day PDT | Remote jobs → Discord |
+| `nightly-scraper` | 2AM PDT | Scrape + embed sources into vector DB |
+| `cron-scraper` | 5x/day PDT | Full pipeline (GitHub, YouTube, arXiv, Reddit, SO, Tavily) |
+
+---
+
+## Tech Stack
+
+- **Runtime**: Node.js 22+ (ESM)
+- **Database**: SQLite (node:sqlite) with WAL mode
+- **Vector Store**: SQLite brute-force + HNSW in-memory index
+- **LLM**: Groq (llama-3.3-70b) → OpenRouter → Gemini → Local fallback
+- **Search**: BM25 + Vector RRF fusion + HyDE
+- **TTS**: edge-tts (Vietnamese female voice)
+- **STT**: Groq Whisper API
+- **Discord**: discord.js v14
+- **Process Manager**: PM2
+- **CI/CD**: GitHub Actions
+
+---
+
+## License
+
+MIT License — Serena, AI Robot Girl Companion
