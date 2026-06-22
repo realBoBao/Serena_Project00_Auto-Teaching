@@ -47,7 +47,11 @@ function findPython() {
     ];
     for (const p of candidates) if (fs.existsSync(p)) return p;
   }
-  return 'python';
+  // Linux: try python3 first, then python
+  const { execSync } = require('child_process');
+  try { execSync('which python3', { stdio: 'pipe' }); return 'python3'; } catch {}
+  try { execSync('which python', { stdio: 'pipe' }); return 'python'; } catch {}
+  return 'python3'; // fallback
 }
 
 // ── TTS: Text → Audio (edge-tts) ──
