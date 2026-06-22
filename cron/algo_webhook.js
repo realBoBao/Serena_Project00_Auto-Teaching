@@ -8,22 +8,15 @@ import 'dotenv/config';
 const DB_PATH = './vectors.db';
 const ALGO_WEBHOOK_URL = process.env.ALGO_WEBHOOK_URL || '';
 
-// ── SQLite helper — tương thích Node 20 và Node 22+ ─────────────────────────
+// ── SQLite helper — Node 22+ (node:sqlite) only ────────────────────────────
 
 async function withDb(fn) {
+  const { DatabaseSync } = await import('node:sqlite');
+  const db = new DatabaseSync(DB_PATH);
   try {
-    const { DatabaseSync } = await import('node:sqlite');
-    const db = new DatabaseSync(DB_PATH);
-    const result = fn(db);
+    return fn(db);
+  } finally {
     db.close();
-    return result;
-  } catch {
-    // Node 20 fallback
-    const Database = (await import('better-sqlite3')).default;
-    const db = new Database(DB_PATH);
-    const result = fn(db);
-    db.close();
-    return result;
   }
 }
 
@@ -123,9 +116,14 @@ async function sendWebhook(payload) {
 async function sendDailyProblem() {
   console.log('[AlgoBot] Fetching LeetCode problem...');
 
+  // Ensure table exists first
+  await withDb(db => {
+    db.exec("CREATE TABLE IF NOT EXISTS algo_daily (key TEXT PRIMARY KEY, value TEXT, created_at TEXT)");
+  });
+
   // Xác định difficulty dựa trên tier
   const stats = await withDb(db => {
-    const row = db.prepare("SELECT value FROM algo_daily WHERE key = 'user_stats'").get();
+    const row = db.prepare("SELECT value FROM algo_daily WHERE key = $key").get({ $key: 'user_stats' });
     return row ? JSON.parse(row.value) : { tier: 1, easySolved: 0, mediumSolved: 0, hardSolved: 0 };
   });
 
@@ -160,12 +158,12 @@ async function sendDailyProblem() {
 
   // Lưu vào DB
   await withDb(db => {
-    db.exec(`CREATE TABLE IF NOT EXISTS algo_daily (key TEXT PRIMARY KEY, value TEXT, created_at TEXT)`);
-    db.prepare('INSERT OR REPLACE INTO algo_daily VALUES (?, ?, ?)').run(
-      'current_problem',
-      JSON.stringify({ title, difficulty, tags, content, link, date: today }),
-      new Date().toISOString()
-    );
+    db.exec("CREATE TABLE IF NOT EXISTS algo_daily (key TEXT PRIMARY KEY, value TEXT, created_at TEXT)");
+    db.prepare('INSERT OR REPLACE INTO algo_daily (key, value, created_at) VALUES ($k, $v, $t)').run({
+      $k: 'current_problem',
+      $v: JSON.stringify({ title, difficulty, tags, content, link, date: today }),
+      $t: new Date().toISOString(),
+    });
   });
 
   // Gửi webhook
@@ -189,7 +187,7 @@ async function sendAnswer() {
   console.log('[AlgoBot] Checking if answer needed...');
 
   const problem = await withDb(db => {
-    const row = db.prepare("SELECT value FROM algo_daily WHERE key = 'current_problem'").get();
+    const row = db.prepare("SELECT value FROM algo_daily WHERE key = $key").get({ $key: 'current_problem' });
     return row ? JSON.parse(row.value) : null;
   });
 
@@ -199,7 +197,7 @@ async function sendAnswer() {
   }
 
   const solved = await withDb(db => {
-    const row = db.prepare("SELECT value FROM algo_daily WHERE key = 'solved'").get();
+    const row = db.prepare("SELECT value FROM algo_daily WHERE key = $key").get({ $key: 'solved' });
     return row?.value;
   });
 
@@ -227,9 +225,9 @@ async function sendAnswer() {
 
 async function markSolved() {
   await withDb(db => {
-    db.exec(`CREATE TABLE IF NOT EXISTS algo_daily (key TEXT PRIMARY KEY, value TEXT, created_at TEXT)`);
+    db.exec("CREATE TABLE IF NOT EXISTS algo_daily (key TEXT PRIMARY KEY, value TEXT, created_at TEXT)");
     const today = new Date().toISOString().slice(0, 10);
-    db.prepare('INSERT OR REPLACE INTO algo_daily VALUES (?, ?, ?)').run('solved', today, new Date().toISOString());
+    db.prepare('INSERT OR REPLACE INTO algo_daily (key, value, created_at) VALUES ($k, $v, $t)').run({ $k: 'solved', $v: today, $t: new Date().toISOString() });
   });
   console.log('[AlgoBot] Marked as solved.');
 }

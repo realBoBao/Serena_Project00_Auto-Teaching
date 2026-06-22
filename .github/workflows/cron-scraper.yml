@@ -18,6 +18,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # ── Job 1: Data Pipeline (multi-source search + scrape) ──
   scrape:
     name: 🔍 Search & Scrape Pipeline
     runs-on: ubuntu-latest
@@ -42,3 +43,59 @@ jobs:
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: node pipeline_report_v2.js "${{ github.event.inputs.topic || 'backend beginner' }}"
+
+  # ── Job 2: Daily Algorithm Problem (8AM PDT) ──
+  algo-daily:
+    name: 🧠 Daily Algo Problem
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm install --legacy-peer-deps --ignore-scripts
+      - name: Send Daily Algo Problem
+        env:
+          ALGO_WEBHOOK_URL: ${{ secrets.ALGO_WEBHOOK_URL }}
+        run: node cron/algo_webhook.js daily
+
+  # ── Job 3: Tech News Webhook (11AM + 5PM PDT) ──
+  tech-news:
+    name: 📰 Tech News Digest
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm install --legacy-peer-deps --ignore-scripts
+      - name: Send Tech News
+        env:
+          TECH_WEBHOOK_URL: ${{ secrets.TECH_WEBHOOK_URL }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+        run: node cron/tech_news_webhook.js
+
+  # ── Job 4: Job Scraper (6AM + 12PM + 6PM PDT) ──
+  job-scraper:
+    name: 💼 Job Alert Scraper
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm install --legacy-peer-deps --ignore-scripts
+      - name: Scrape & Send Job Alerts
+        env:
+          JOB_WEBHOOK_URL: ${{ secrets.JOB_WEBHOOK_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node cron/job_scraper.js
