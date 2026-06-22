@@ -16,15 +16,8 @@ import { sandboxGateway } from './sandbox_gateway.js';
 import { withTimeout, TimeoutError } from './lib/with_timeout.js';
 import { embedText } from './lib/embeddings.js';
 import { search as vectorSearch } from './lib/vector_store.js';
-import { runDebate, quickDebate } from './agents/DebateAgent.js';
-import { solveWithDebugLoop } from './agents/CoderAgent.js';
-import { processVisionMessage } from './agents/VisionAgent.js';
-import { initSemanticRouter, classifyIntentSemantic } from './lib/semantic_router.js';
-import { processVoiceMessage } from './agents/VoiceAgent.js';
-import { createAnimation, createAnimationWithCompression, createAnimationAsync } from './agents/ManimAgent.js';
-import { startShadowReview, submitReviewAnswer, getNextHint } from './agents/MentorAgent.js';
-import { generateIncident, evaluateHotfix, createIncidentSession, getIncidentSession } from './agents/IncidentAgent.js';
-import { analyzeUrl } from './agents/AnalysisAgent.js';
+// ── Tier 1: Lazy import — agents loaded on-demand to save RAM ──
+// All agent imports moved to lazy import inside command handlers
 import {
   getSocraticSession,
   startSocraticSession,
@@ -1159,6 +1152,7 @@ client.on(Events.MessageCreate, async (message) => {
       });
 
       try {
+        const { startShadowReview } = await import('./agents/MentorAgent.js');
         const result = await startShadowReview(userId, level);
         await waitingMsg.edit({
           content: truncateForDiscord(result.message),
@@ -1242,6 +1236,7 @@ client.on(Events.MessageCreate, async (message) => {
       });
 
       try {
+        const { generateIncident, createIncidentSession } = await import('./agents/IncidentAgent.js');
         const result = await generateIncident(userId, difficulty);
         const incident = result.incident;
         const sessionId = createIncidentSession(userId, incident);
@@ -1314,6 +1309,7 @@ client.on(Events.MessageCreate, async (message) => {
       });
 
       try {
+        const { analyzeUrl } = await import('./agents/AnalysisAgent.js');
         const result = await analyzeUrl(url, { createFlashcards: true });
 
         if (!result.success) {
@@ -1383,6 +1379,7 @@ client.on(Events.MessageCreate, async (message) => {
       });
 
       try {
+        const { processVisionMessage } = await import('./agents/VisionAgent.js');
         const result = await processVisionMessage(message);
 
         if (!result.success) {
@@ -1439,6 +1436,7 @@ client.on(Events.MessageCreate, async (message) => {
       });
 
       try {
+        const { processVoiceMessage } = await import('./agents/VoiceAgent.js');
         const result = await processVoiceMessage(message);
 
         if (!result.success) {
@@ -1721,6 +1719,7 @@ client.on(Events.MessageCreate, async (message) => {
       });
 
       try {
+        const { runDebate, quickDebate } = await import('./agents/DebateAgent.js');
         const result = isQuick
           ? await quickDebate(cleanQuery)
           : await runDebate(cleanQuery);
@@ -2392,6 +2391,7 @@ client.on(Events.MessageCreate, async (message) => {
       });
 
       try {
+        const { solveWithDebugLoop } = await import('./agents/CoderAgent.js');
         const result = await solveWithDebugLoop(problem, { runTests: true, maxRetries: 2 });
 
         const isSuccess = result.status === 'success';
