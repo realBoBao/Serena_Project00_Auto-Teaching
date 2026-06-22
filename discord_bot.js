@@ -10,12 +10,15 @@ import {
   Partials,
 } from 'discord.js';
 import { initializeMarkovFiles } from './lib/markov_engine.js';
+import { initSemanticRouter } from './lib/semantic_router.js';
 import { orchestrator } from './Orchestrator.js';
 import { orchestratorGuard } from './lib/orchestrator_guard.js';
 import { sandboxGateway } from './sandbox_gateway.js';
 import { withTimeout, TimeoutError } from './lib/with_timeout.js';
 import { embedText } from './lib/embeddings.js';
 import { search as vectorSearch } from './lib/vector_store.js';
+import { getLogger } from './lib/logger.js';
+const logger = getLogger('DiscordBot');
 // ── Tier 1: Lazy import — agents loaded on-demand to save RAM ──
 // All agent imports moved to lazy import inside command handlers
 import {
@@ -262,6 +265,62 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 orchestrator.on('error', async (error, event) => {
   console.error('Orchestrator event error:', error, event);
+});
+
+// ── Voice State Update: Auto-greet when user joins voice channel ──
+client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+  try {
+    // Skip bot users
+    if (newState.member?.user?.bot) return;
+
+    // Detect user joined a voice channel (wasn't in one before)
+    const joined = !oldState.channelId && newState.channelId;
+    if (!joined) return;
+
+    const guildId = newState.guild.id;
+    const userName = newState.member?.displayName || newState.member?.user?.username || 'bạn';
+    const channelName = newState.channel?.name || 'voice channel';
+
+    logger.info(`[Voice] User ${userName} joined ${channelName}, saying hello...`);
+
+    // Try to speak in voice channel if bot is connected
+    try {
+      const { isConnected, speakInChannel, joinChannel } = await import('./agents/voice_conversation.js');
+      if (isConnected(guildId)) {
+        logger.info(`[Voice] Bot already in VC, speaking hello to ${userName}...`);
+        const speakResult = await speakInChannel(guildId, `Xin chào ${userName}! Chào mừng bạn đến voice channel.`);
+        logger.info(`[Voice] speakInChannel result: ${JSON.stringify(speakResult)}`);
+        return;
+      }
+      // Bot not connected — try to auto-join and greet
+      if (newState.channel) {
+        logger.info(`[Voice] Bot not in VC, auto-joining ${channelName}...`);
+        const result = await joinChannel(newState.channel);
+        logger.info(`[Voice] joinChannel result: ${JSON.stringify(result)}`);
+        if (result.success) {
+          // Wait a moment for connection to stabilize, then speak
+          await new Promise(r => setTimeout(r, 3000));
+          const speakResult = await speakInChannel(guildId, `Xin chào ${userName}! Chào mừng bạn đến ${channelName}.`);
+          logger.info(`[Voice] speakInChannel result: ${JSON.stringify(speakResult)}`);
+          return;
+        } else {
+          logger.warn(`[Voice] joinChannel failed: ${result.error}`);
+        }
+      }
+    } catch (voiceErr) {
+      logger.warn(`[Voice] Voice greet failed: ${voiceErr.message}`);
+    }
+
+    // Fallback: greet in text channel if voice fails
+    try {
+      const systemChannel = newState.guild.systemChannel || newState.channel?.guild?.systemChannel;
+      if (systemChannel) {
+        await systemChannel.send(`🎙️ Xin chào **${userName}**! Chào mừng bạn đến **${channelName}**. Dùng \`!join\` để mời bot tham gia voice!`);
+      }
+    } catch { /* ignore text channel errors */ }
+  } catch (err) {
+    console.error('VoiceStateUpdate error:', err?.message || err);
+  }
 });
 
 // ── Router Agent: Intent Classification ──

@@ -204,6 +204,15 @@ export async function joinChannel(channel) {
       _connections.delete(guildId);
     });
 
+    // Handle UDP/network errors gracefully — don't crash the bot
+    connection.on('error', (err) => {
+      logger.error(`[Voice] Connection error: ${err.message}`);
+      // Don't delete connection on transient errors — only on explicit disconnect
+      if (err.message?.includes('socket closed') || err.message?.includes('IP discovery')) {
+        logger.warn(`[Voice] UDP error (common on local Windows). Bot stays alive but voice may not work.`);
+      }
+    });
+
     logger.info(`[Voice] Joined: ${channel.name} (${guildId})`);
     return { success: true };
   } catch (err) {
@@ -214,13 +223,22 @@ export async function joinChannel(channel) {
 
 export function leaveChannel(guildId) {
   const entry = _connections.get(guildId);
-  if (!entry) return;
+  if (!entry) {
+    logger.info(`[Voice] leaveChannel: no connection for ${guildId}`);
+    return { success: false, error: 'Not connected' };
+  }
   try {
-    entry.connection.destroy();
+    // Force destroy even if connection is in broken state
+    try { entry.connection?.disconnect?.(); } catch { /* ignore */ }
+    try { entry.connection?.destroy?.(); } catch { /* ignore */ }
     _connections.delete(guildId);
     logger.info(`[Voice] Left: ${guildId}`);
+    return { success: true };
   } catch (err) {
     logger.error(`[Voice] Leave error: ${err.message}`);
+    // Force cleanup even on error
+    _connections.delete(guildId);
+    return { success: false, error: err.message };
   }
 }
 
@@ -231,20 +249,42 @@ export async function playAudio(guildId, audioSource) {
   if (!entry) return { success: false, error: 'Not connected' };
 
   try {
-    const resource = createAudioResource(audioSource);
+    // Support both file path (string) and Readable stream
+    let resource;
+    if (typeof audioSource === 'string') {
+      // File path — createAudioResource handles it
+      resource = createAudioResource(audioSource);
+    } else if (audioSource instanceof Readable) {
+      resource = createAudioResource(audioSource);
+    } else {
+      return { success: false, error: 'Invalid audio source type' };
+    }
     entry.player.play(resource);
     entry.speaking = true;
 
-    await new Promise((resolve) => {
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        entry.speaking = false;
+        reject(new Error('Audio playback timeout (30s)'));
+      }, 30000);
+
       entry.player.once(AudioPlayerStatus.Idle, () => {
+        clearTimeout(timeout);
         entry.speaking = false;
         resolve();
+      });
+
+      entry.player.once('error', (err) => {
+        clearTimeout(timeout);
+        entry.speaking = false;
+        reject(err);
       });
     });
 
     return { success: true };
   } catch (err) {
     entry.speaking = false;
+    logger.error(`[Voice] playAudio error: ${err.message}`);
     return { success: false, error: err.message };
   }
 }
@@ -299,8 +339,8 @@ export function startListening(guildId) {
       const audioBuffer = Buffer.concat(chunks);
       logger.info(`[Voice] Received ${audioBuffer.length} bytes from ${userId}`);
 
-      // Chỉ xử lý nếu audio đủ lớn (> 10KB)
-      if (audioBuffer.length < 10000) {
+      // Chỉ xử lý nếu audio đủ lớn (> 200 bytes, ~0.2s audio)
+      if (audioBuffer.length < 200) {
         logger.info('[Voice] Audio too short, skipping');
         return;
       }

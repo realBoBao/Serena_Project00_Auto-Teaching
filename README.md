@@ -166,7 +166,7 @@ SQLite Vector Store (domain-filtered) + BM25 + Knowledge Graph
 - **Vector Store**: SQLite brute-force + HNSW in-memory index
 - **LLM**: Groq (llama-3.3-70b) → OpenRouter → Gemini → Local fallback
 - **Search**: BM25 + Vector RRF fusion + HyDE
-- **TTS**: edge-tts (Vietnamese female voice)
+- **TTS**: edge-tts (female voice)
 - **STT**: Groq Whisper API
 - **Discord**: discord.js v14
 - **Process Manager**: PM2
