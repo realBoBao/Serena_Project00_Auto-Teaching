@@ -23,11 +23,12 @@ const TECH_TOPICS = [
 ];
 
 // ── Dedup: chỉ dùng Discord history (hoạt động trên cả VPS và GitHub Actions)
+async function wasSent(topic) {
+  // Check Discord channel history (works on both VPS and GitHub Actions)
   try {
     const webhookMatch = TECH_WEBHOOK.match(/webhooks\/(\d+)\//);
     if (webhookMatch) {
       const channelId = webhookMatch[1];
-      // Check last 100 messages to cover all topics sent today
       const histRes = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages?limit=100`, {
         headers: { 'Authorization': `Bot ${process.env.DISCORD_BOT_TOKEN}` },
       });
@@ -35,10 +36,8 @@ const TECH_TOPICS = [
         const messages = await histRes.json();
         const today = new Date().toISOString().slice(0, 10);
         for (const msg of messages) {
-          // Check all embeds in the message, not just the first one
           if (msg.timestamp?.startsWith(today)) {
             for (const embed of (msg.embeds || [])) {
-              // Check if embed title contains the topic (case-insensitive)
               const embedTitle = (embed.title || '').toLowerCase();
               const topicLower = topic.toLowerCase();
               if (embedTitle.includes(topicLower)) {
@@ -53,8 +52,6 @@ const TECH_TOPICS = [
 
   return false;
 }
-
-
 
 async function fetchHN(query, limit = 10) {
   try {
@@ -184,7 +181,7 @@ async function main() {
 
   try {
     const res = await fetch(TECH_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embeds: [embed] }) });
-    if (res.ok) { console.log(`[TechNews] ✅ Sent ${all.length} items`); await markSent(topic); }
+    if (res.ok) { console.log(`[TechNews] ✅ Sent ${all.length} items`); }
     else console.error('[TechNews] ❌ Failed:', res.status);
   } catch (err) { console.error('[TechNews] ❌ Error:', err.message); }
 }
