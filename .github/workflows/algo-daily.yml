@@ -1,0 +1,25 @@
+# Daily Algorithm Problem — 8AM PDT (15:00 UTC)
+name: 🧠 Daily Algo
+
+on:
+  schedule:
+    - cron: '0 15 * * *'  # 8AM PDT daily
+  workflow_dispatch:
+
+jobs:
+  algo:
+    name: Send Daily Algo Problem
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm install --legacy-peer-deps --ignore-scripts
+      - name: Send Daily Algo Problem
+        env:
+          ALGO_WEBHOOK_URL: ${{ secrets.ALGO_WEBHOOK_URL }}
+        run: node cron/algo_webhook.js daily

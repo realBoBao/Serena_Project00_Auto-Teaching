@@ -1,0 +1,32 @@
+# Tech News Digest — 11AM + 5PM PDT (18:00 + 00:00 UTC)
+name: 📰 Tech News
+
+on:
+  schedule:
+    - cron: '0 18 * * *'  # 11AM PDT daily
+    - cron: '0 0 * * *'   # 5PM PDT daily (00:00 UTC next day)
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: 'Topic (trống = random)'
+        required: false
+        default: ''
+
+jobs:
+  tech-news:
+    name: Send Tech News
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm install --legacy-peer-deps --ignore-scripts
+      - name: Send Tech News
+        env:
+          TECH_WEBHOOK_URL: ${{ secrets.TECH_WEBHOOK_URL }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+        run: node cron/tech_news_webhook.js "${{ github.event.inputs.topic || '' }}"

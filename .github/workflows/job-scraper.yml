@@ -1,0 +1,28 @@
+# Job Alert Scraper — 6AM + 12PM + 6PM PDT (13:00 + 19:00 + 01:00 UTC)
+name: 💼 Job Alerts
+
+on:
+  schedule:
+    - cron: '0 13 * * *'  # 6AM PDT daily
+    - cron: '0 19 * * *'  # 12PM PDT daily
+    - cron: '0 1 * * *'   # 6PM PDT daily (01:00 UTC next day)
+  workflow_dispatch:
+
+jobs:
+  job-scraper:
+    name: Scrape & Send Job Alerts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm install --legacy-peer-deps --ignore-scripts
+      - name: Scrape & Send Job Alerts
+        env:
+          JOB_WEBHOOK_URL: ${{ secrets.JOB_WEBHOOK_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node cron/job_scraper.js

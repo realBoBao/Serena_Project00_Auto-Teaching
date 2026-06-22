@@ -133,9 +133,10 @@ async function fetchReddit(query, limit = 10) {
   }
 }
 
-async function fetchGitHubTrending(limit = 10) {
+async function fetchGitHub(query, limit = 10) {
   try {
-    const res = await fetch(`https://api.github.com/search/repositories?q=created:>2024-01-01&sort=stars&order=desc&per_page=${limit}`);
+    // Search theo topic thay vì fetch trending chung
+    const res = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}+created:>2024-01-01&sort=stars&order=desc&per_page=${limit}`);
     if (!res.ok) throw new Error(`GitHub API ${res.status}`);
     const data = await res.json();
     return (data.items || []).slice(0, limit).map(r => ({
@@ -161,7 +162,7 @@ async function main() {
   const [hn, reddit, github] = await Promise.all([
     fetchHackerNews(topic, 10),
     fetchReddit(topic, 10),
-    fetchGitHubTrending(topic, 10),
+    fetchGitHub(topic, 10),
   ]);
 
   const allNews = [...hn, ...reddit, ...github];
