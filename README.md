@@ -176,4 +176,5 @@ SQLite Vector Store (domain-filtered) + BM25 + Knowledge Graph
 
 ## License
 
-MIT License — Serena, AI Robot Girl Companion
+MIT License — Serena, AI Robot 
+Companion
