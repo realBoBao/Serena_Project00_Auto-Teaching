@@ -52,8 +52,15 @@ jobs:
             node --version
             npm --version
 
-            # Install dependencies (Tier 2: no log masking)
-            echo "📦 Installing dependencies..."
+            # Install Python dependencies (for document_parser.js)
+            echo "🐍 Installing Python dependencies..."
+            if ! command -v pip3 &> /dev/null; then
+              sudo apt-get install -y -qq python3-pip
+            fi
+            pip3 install -r requirements.txt || echo "⚠️ Python deps install skipped"
+
+            # Install Node dependencies (Tier 2: no log masking)
+            echo "📦 Installing Node dependencies..."
             npm install --legacy-peer-deps --omit=dev --no-audit --no-fund
             echo "📦 Installed $(ls node_modules | wc -l) packages"
 

@@ -1,0 +1,4 @@
+# Python dependencies for Serena AI Bridge
+# Used by: lib/document_parser.js (html_to_markdown.py)
+markdownify>=1.2.0
+defusedxml>=0.7.1

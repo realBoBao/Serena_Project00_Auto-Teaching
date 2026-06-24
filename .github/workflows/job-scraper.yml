@@ -20,6 +20,10 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - run: pip install -r requirements.txt
       - run: npm install --legacy-peer-deps --ignore-scripts
       - name: Scrape & Send Job Alerts
         env:

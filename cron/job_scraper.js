@@ -145,54 +145,29 @@ async function main() {
     console.log(`[JobScraper] Filtered: ${rawJobs.length} → ${filteredJobs.length} (removed ${rawJobs.length - filteredJobs.length} irrelevant)`);
   }
 
-  // ── Dedup: Loại bỏ jobs đã gửi (check Discord history bằng URL + title) ──
-  let dedupedJobs = filteredJobs;
+  // ── Dedup: Loại bỏ jobs đã gửi (file-based + SQLite) ──
+  const JOB_SENT_PATH = './data/job_sent.json';
+  let jobSentHistory = { urls: {}, titles: {} };
   try {
-    const webhookMatch = JOB_WEBHOOK.match(/webhooks\/(\d+)\//);
-    if (webhookMatch) {
-      const channelId = webhookMatch[1];
-      const histRes = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages?limit=50`, {
-        headers: { 'Authorization': `Bot ${process.env.DISCORD_BOT_TOKEN}` },
-      });
-      if (histRes.ok) {
-        const messages = await histRes.json();
-        const sentUrls = new Set();
-        const sentTitles = new Set();
-        for (const msg of messages) {
-          // Extract URLs from embed description
-          if (msg.embeds?.[0]?.description) {
-            const urlMatches = msg.embeds[0].description.match(/https?:\/\/[^\s\)]+/g);
-            if (urlMatches) urlMatches.forEach(u => sentUrls.add(u));
-          }
-          // Extract job titles from embed description
-          // Format: **1.** [Source] **Company — Role** — description [Apply](url)
-          if (msg.embeds?.[0]?.description) {
-            const lines = msg.embeds[0].description.split('\n');
-            for (const line of lines) {
-              // Match lines like: **1.** [Source] **Company — Role** — ...
-              const m = line.match(/\*\*[^\]]+\.\*\*\s*\[[^\]]+\]\s*\*\*([^*]+)\*\*/);
-              if (m) {
-                sentTitles.add(m[1].trim().toLowerCase());
-              }
-            }
-          }
-        }
-        dedupedJobs = filteredJobs.filter(j => {
-          // Skip if URL already seen in SQLite DB
-          if (seenUrls.has(j.link || '')) return false;
-          // Skip if URL found in Discord history
-          if (sentUrls.has(j.link || '')) return false;
-          // Skip if title found in Discord history
-          if (sentTitles.has((`${j.company} — ${j.role}`).trim().toLowerCase())) return false;
-          return true;
-        });
-        if (dedupedJobs.length < filteredJobs.length) {
-          console.log(`[JobScraper] Dedup: ${filteredJobs.length} → ${dedupedJobs.length} (removed already sent)`);
-        }
-      }
-    }
-  } catch (dedupErr) {
-    console.debug('[JobScraper] Discord dedup skipped:', dedupErr.message);
+    const { readFileSync } = require('fs');
+    jobSentHistory = JSON.parse(readFileSync(JOB_SENT_PATH, 'utf8'));
+  } catch { /* ignore */ }
+
+  const sentUrlSet = new Set(Object.keys(jobSentHistory.urls));
+  const sentTitleSet = new Set(Object.keys(jobSentHistory.titles));
+
+  // Merge SQLite seen URLs
+  for (const url of seenUrls) sentUrlSet.add(url);
+
+  const dedupedJobs = filteredJobs.filter(j => {
+    if (sentUrlSet.has(j.link || '')) return false;
+    const titleKey = (`${j.company} — ${j.role}`).trim().toLowerCase();
+    if (sentTitleSet.has(titleKey)) return false;
+    return true;
+  });
+
+  if (dedupedJobs.length < filteredJobs.length) {
+    console.log(`[JobScraper] Dedup: ${filteredJobs.length} → ${dedupedJobs.length} (removed already sent)`);
   }
 
   if (dedupedJobs.length === 0) {
@@ -238,7 +213,23 @@ async function main() {
 
     if (res.ok) {
       console.log('[JobScraper] ✅ Webhook sent successfully');
-      // Save sent jobs to SQLite for dedup
+      // Save sent jobs to file-based history + SQLite
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        for (const j of dedupedJobs) {
+          if (j.link) jobSentHistory.urls[j.link] = today;
+          jobSentHistory.titles[(`${j.company} — ${j.role}`).trim().toLowerCase()] = today;
+        }
+        // Prune 7 ngày
+        const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+        for (const k of Object.keys(jobSentHistory.urls)) { if (jobSentHistory.urls[k] < cutoff) delete jobSentHistory.urls[k]; }
+        for (const k of Object.keys(jobSentHistory.titles)) { if (jobSentHistory.titles[k] < cutoff) delete jobSentHistory.titles[k]; }
+        const { writeFileSync, mkdirSync } = require('fs');
+        mkdirSync('./data', { recursive: true });
+        writeFileSync(JOB_SENT_PATH, JSON.stringify(jobSentHistory, null, 2));
+        console.log(`[JobScraper] Saved ${dedupedJobs.length} jobs to sent history`);
+      } catch (saveErr) { /* ignore */ }
+      // Also save to SQLite
       try {
         const { DatabaseSync } = await import('node:sqlite');
         const db = new DatabaseSync('./vectors.db');
@@ -246,8 +237,7 @@ async function main() {
         const stmt = db.prepare("INSERT OR IGNORE INTO sent_jobs (url, sent_at) VALUES (?, datetime('now'))");
         for (const j of dedupedJobs) { stmt.run(j.link || j.title); }
         db.close();
-        console.log(`[JobScraper] Saved ${dedupedJobs.length} job URLs to DB`);
-      } catch (saveErr) { /* ignore */ }
+      } catch { /* ignore */ }
     } else {
       console.error('[JobScraper] ❌ Webhook failed:', res.status, await res.text());
     }

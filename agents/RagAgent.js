@@ -108,16 +108,18 @@ async function getRagVerifier() {
 
 // ── Confidence Scoring Helper ──────────────────────────────────────────────
 // Wraps answer with confidence score and optional Discord suffix
-async function applyConfidenceScoring({ question, answer, results, jaccardSim, skipSelfCheck }) {
+async function applyConfidenceScoring({ question, answer, results, jaccardSim, skipSelfCheck, source, topic }) {
   try {
     const scorer = await getConfidenceScorer();
     // Fix: scoreConfidence is a direct export, not ConfidenceScorer.compute
     const confidence = await scorer.scoreConfidence({
       question,
       answer,
-      searchResults: results || [],
-      jaccardSim: jaccardSim ?? null,
+      results: results || [],
+      jaccardSim: jaccardSim ?? 0,
       skipSelfCheck: skipSelfCheck ?? false,
+      source,
+      topic,
     });
 
     // Handle very_low confidence — refuse to answer
@@ -1456,7 +1458,7 @@ export async function answerQuestion(query, options = {}) {
       const safe = gate.safeAnswer || `Toi khong dam bao cau tra loi nay hoan toan dung vi du lieu hien co chua du. Duoi day la cac mảnh thong tin de ban doi chieu:\n\n${fallbackSnippet}`;
       let scored;
       try {
-        scored = await applyConfidenceScoring({ question: cleanQuery, answer: safe, results: localResults });
+        scored = await applyConfidenceScoring({ question: cleanQuery, answer: safe, results: localResults, source: 'local', topic: predictedTopic });
       } catch (scoreErr) {
         logger.warn('[answerQuestion] applyConfidenceScoring failed, using defaults:', scoreErr?.message);
         scored = { answer: safe, confidence: { score: 0.3, level: 'low' } };
@@ -1519,7 +1521,7 @@ export async function answerQuestion(query, options = {}) {
           learnFromResponse(cleanQuery, answer, 'web', finalResults).catch(() => {});
           updateSourcePreference(predictedTopic, 'web', gate.pass ? 0.8 : 0.3);
         }
-        const scored = await applyConfidenceScoring({ question: cleanQuery, answer, results: finalResults });
+        const scored = await applyConfidenceScoring({ question: cleanQuery, answer, results: finalResults, source: 'web', topic: predictedTopic });
         // Step 6: Track response quality
         trackQuality(cleanQuery, scored?.answer, scored, options, predictedTopic);
         return { ...scored, source: 'web', results: finalResults, predictedTopic, sourcesFormatted: formatSourcesWithScore(finalResults, 'web') };
@@ -1528,7 +1530,7 @@ export async function answerQuestion(query, options = {}) {
       // LLM gate fail → trả về web sources với fallback message
       const fallbackSnippet = formatRetrievedSnippets(finalResults);
       const safe = gate.safeAnswer || `⚠️ Tôi tìm thấy các nguồn sau nhưng chưa chắc chắn:\n\n${fallbackSnippet}`;
-      const scored = await applyConfidenceScoring({ question: cleanQuery, answer: safe, results: finalResults });
+      const scored = await applyConfidenceScoring({ question: cleanQuery, answer: safe, results: finalResults, source: 'web', topic: predictedTopic });
       // Step 6: Track response quality
       trackQuality(cleanQuery, safe, scored, options, predictedTopic);
       return { ...scored, source: 'web-partial', results: finalResults, predictedTopic, sourcesFormatted: formatSourcesWithScore(finalResults, 'web') };

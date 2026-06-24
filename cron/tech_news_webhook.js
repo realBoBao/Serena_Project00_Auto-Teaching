@@ -22,39 +22,71 @@ const TECH_TOPICS = [
   'networking', 'open source', 'edge computing', 'IoT',
 ];
 
-// ── Dedup: chỉ dùng Discord history (hoạt động trên cả VPS và GitHub Actions)
-async function wasSent(topic) {
-  // Check Discord channel history (works on both VPS and GitHub Actions)
-  try {
-    const webhookMatch = TECH_WEBHOOK.match(/webhooks\/(\d+)\//);
-    if (webhookMatch) {
-      const channelId = webhookMatch[1];
-      const histRes = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages?limit=100`, {
-        headers: { 'Authorization': `Bot ${process.env.DISCORD_BOT_TOKEN}` },
-      });
-      if (histRes.ok) {
-        const messages = await histRes.json();
-        const today = new Date().toISOString().slice(0, 10);
-        for (const msg of messages) {
-          if (msg.timestamp?.startsWith(today)) {
-            for (const embed of (msg.embeds || [])) {
-              const embedTitle = (embed.title || '').toLowerCase();
-              const topicLower = topic.toLowerCase();
-              if (embedTitle.includes(topicLower)) {
-                return true;
-              }
-            }
-          }
-        }
-      }
-    }
-  } catch { /* ignore */ }
+// ── Dedup: file-based sent history (works on VPS + GitHub Actions) ──
+const SENT_HISTORY_PATH = './data/tech_news_sent.json';
 
-  return false;
+function loadSentHistory() {
+  try {
+    const { readFileSync } = require('fs');
+    return JSON.parse(readFileSync(SENT_HISTORY_PATH, 'utf8'));
+  } catch { return { topics: {}, urls: {} }; }
+}
+
+function saveSentHistory(history) {
+  try {
+    const { writeFileSync, mkdirSync } = require('fs');
+    mkdirSync('./data', { recursive: true });
+    writeFileSync(SENT_HISTORY_PATH, JSON.stringify(history, null, 2));
+  } catch { /* ignore */ }
+}
+
+function isTopicSentToday(topic) {
+  const history = loadSentHistory();
+  const today = new Date().toISOString().slice(0, 10);
+  return history.topics[topic] === today;
+}
+
+function recordSentTopic(topic, urls) {
+  const history = loadSentHistory();
+  const today = new Date().toISOString().slice(0, 10);
+  history.topics[topic] = today;
+  for (const url of urls) {
+    if (url) history.urls[url] = today;
+  }
+  // Prune: chỉ giữ 7 ngày gần nhất
+  const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  for (const k of Object.keys(history.topics)) { if (history.topics[k] < cutoff) delete history.topics[k]; }
+  for (const k of Object.keys(history.urls)) { if (history.urls[k] < cutoff) delete history.urls[k]; }
+  saveSentHistory(history);
+}
+
+// ── Crawlee scraper (shared instance, MemoryStorage only) ──
+async function getCrawler() {
+  const { CheerioCrawler, Configuration, MemoryStorage } = await import('crawlee');
+  const config = new Configuration({
+    storageClient: new MemoryStorage(),
+    purgeOnStart: true,
+  });
+  return new CheerioCrawler({
+    maxConcurrency: 5,
+    maxRequestRetries: 3,
+    requestHandlerTimeoutSecs: 30,
+    preNavigationHooks: [
+      ({ request }) => {
+        request.headers = {
+          ...request.headers,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        };
+      },
+    ],
+  }, config);
 }
 
 async function fetchHN(query, limit = 10) {
   try {
+    // HN Algolia API — dùng fetch cho nhanh (JSON endpoint)
     const r = await fetch(`https://hn.algolia.com/api/v1/search?query=${encodeURIComponent(query)}&tags=story&hitsPerPage=${limit}`);
     if (!r.ok) return [];
     const d = await r.json();
@@ -64,16 +96,37 @@ async function fetchHN(query, limit = 10) {
 
 async function fetchReddit(query, limit = 10) {
   try {
-    const r = await fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=relevance&t=week&limit=${limit}`, { headers: { 'User-Agent': 'Serena-Brain/1.0' } });
-    if (!r.ok) return [];
-    const d = await r.json();
-    return (d.data?.children || []).filter(c => c.data && !c.data.stickied).map(c => ({ title: c.data.title || 'Untitled', url: `https://reddit.com${c.data.permalink || ''}`, pts: c.data.score || 0 }));
+    // Reddit JSON API — dùng Crawlee để có retry + rate-limit
+    const crawler = await getCrawler();
+    const results = [];
+
+    crawler.requestHandler = async ({ $, request, body }) => {
+      try {
+        const json = typeof body === 'string' ? JSON.parse(body) : body;
+        const children = json?.data?.children || [];
+        for (const c of children) {
+          if (c.data && !c.data.stickied) {
+            results.push({
+              title: c.data.title || 'Untitled',
+              url: `https://reddit.com${c.data.permalink || ''}`,
+              pts: c.data.score || 0,
+            });
+          }
+        }
+      } catch { /* skip */ }
+    };
+
+    await crawler.run([`https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=relevance&t=week&limit=${limit}`]);
+    return results.slice(0, limit);
   } catch { return []; }
 }
 
 async function fetchGitHub(query, limit = 10) {
   try {
-    const r = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}+created:>2024-01-01&sort=stars&order=desc&per_page=${limit}`);
+    // GitHub API — fetch là đủ (JSON, có rate-limit header rõ ràng)
+    const r = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}+created:>2024-01-01&sort=stars&order=desc&per_page=${limit}`, {
+      headers: { 'User-Agent': 'Serena-Brain/1.0', 'Accept': 'application/vnd.github.v3+json' },
+    });
     if (!r.ok) return [];
     const d = await r.json();
     return (d.items || []).slice(0, limit).map(r => ({ title: r.full_name || 'Untitled', url: r.html_url || '', pts: r.stargazers_count || 0 }));
@@ -82,6 +135,7 @@ async function fetchGitHub(query, limit = 10) {
 
 async function fetchArXiv(query, limit = 5) {
   try {
+    // ArXiv API — fetch là đủ (XML đơn giản)
     const r = await fetch(`http://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(query)}&start=0&max_results=${limit}`);
     if (!r.ok) return [];
     const xml = await r.text();
@@ -100,7 +154,7 @@ function pickRandomTopic() {
 async function main() {
   const topic = process.argv[2] || pickRandomTopic();
 
-  if (await wasSent(topic)) {
+  if (isTopicSentToday(topic)) {
     console.log(`[TechNews] Already sent "${topic}" today — skip`);
     return;
   }
@@ -118,45 +172,30 @@ async function main() {
     ...arxiv.map(n => ({ ...n, src: 'arXiv', score: 0.75 })),
   ];
 
-  // ── Dedup + Fallback via direct SQLite query ──
-  try {
-    const { DatabaseSync } = await import('node:sqlite');
-    const db = new DatabaseSync('./vectors.db');
+  // ── Intra-run URL dedup (same URL from multiple sources) ──
+  const seenUrls = new Set();
+  all = all.filter(n => {
+    if (!n.url || seenUrls.has(n.url)) return false;
+    seenUrls.add(n.url);
+    return true;
+  });
 
-    // Get existing URLs for this topic
-    const rows = db.prepare("SELECT url FROM vectors WHERE chunk_text LIKE ? LIMIT 100").all(`%${topic}%`);
-    const existingUrls = new Set(rows.map(r => r.url).filter(Boolean));
-
-    if (existingUrls.size > 0) {
-      const before = all.length;
-      all = all.filter(n => !existingUrls.has(n.url));
-      if (all.length < before) {
-        console.log(`[TechNews] Dedup: ${before} → ${all.length} (removed ${before - all.length} duplicates)`);
-      }
+  // ── Inter-run URL dedup via sent history ──
+  const history = loadSentHistory();
+  const sentUrls = new Set(Object.keys(history.urls));
+  if (sentUrls.size > 0) {
+    const before = all.length;
+    all = all.filter(n => !sentUrls.has(n.url));
+    if (all.length < before) {
+      console.log(`[TechNews] Dedup: ${before} → ${all.length} (removed ${before - all.length} previously sent)`);
     }
-
-    // Fallback: if nothing new, get oldest from DB
-    if (!all.length) {
-      console.log('[TechNews] No new sources — fetching from DB cache...');
-      const cached = db.prepare("SELECT DISTINCT doc_id, url, project FROM vectors WHERE chunk_text LIKE ? ORDER BY added_at ASC LIMIT 10").all(`%${topic}%`);
-      if (cached.length > 0) {
-        all = cached.map(c => ({
-          title: c.project || c.doc_id || 'Cached',
-          url: c.url || '',
-          src: 'cached',
-          score: 0.5,
-          pts: 0,
-        }));
-        console.log(`[TechNews] Fallback: ${all.length} cached sources from DB`);
-      }
-    }
-
-    db.close();
-  } catch (dbErr) {
-    console.debug('[TechNews] DB dedup/fallback skipped:', dbErr.message);
   }
 
-  if (!all.length) { console.log('[TechNews] No results at all'); return; }
+  // Nếu không còn gì mới → skip, không gửi trùng
+  if (!all.length) {
+    console.log('[TechNews] No new sources today — skip (no duplicate send)');
+    return;
+  }
   all.sort((a, b) => b.score - a.score);
 
   const lines = all.slice(0, 15).map((n, i) => {
@@ -181,8 +220,13 @@ async function main() {
 
   try {
     const res = await fetch(TECH_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embeds: [embed] }) });
-    if (res.ok) { console.log(`[TechNews] ✅ Sent ${all.length} items`); }
-    else console.error('[TechNews] ❌ Failed:', res.status);
+    if (res.ok) {
+      console.log(`[TechNews] ✅ Sent ${all.length} items`);
+      // Record sent topic + URLs để lần sau không trùng
+      recordSentTopic(topic, all.map(n => n.url));
+    } else {
+      console.error('[TechNews] ❌ Failed:', res.status);
+    }
   } catch (err) { console.error('[TechNews] ❌ Error:', err.message); }
 }
 
