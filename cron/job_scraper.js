@@ -16,27 +16,53 @@ if (!JOB_WEBHOOK) {
   process.exit(1);
 }
 
+// ── Helpers ──
+function stripHtml(s) { return s.replace(/<[^>]+>/g, '').trim(); }
+
+function parseSimplifyHtml(text, limit, source) {
+  const tbodyMatch = text.match(/<tbody>([\s\S]*?)<\/tbody>/);
+  if (!tbodyMatch) return [];
+  const rows = tbodyMatch[1].split(/<tr>/).filter(r => r.includes('<td>'));
+  return rows.slice(0, limit).map(r => {
+    const cells = r.split(/<td>/).filter(c => c.includes('</td>'));
+    const vals = cells.map(c => {
+      const end = c.indexOf('</td>');
+      const html = c.slice(0, end);
+      const link = html.match(/href="([^"]+)"/)?.[1] || '';
+      const text = stripHtml(html);
+      return { text, link };
+    });
+    return {
+      company: vals[0]?.text || 'Unknown',
+      role: vals[1]?.text || 'Unknown',
+      location: vals[2]?.text || 'Remote',
+      link: vals[3]?.link || '#',
+      source,
+    };
+  }).filter(j => j.company !== 'Unknown');
+}
+
 // ── Job sources ──
 async function fetchSimplifyJobs(limit = 10) {
   try {
-    // SimplifyJobs GitHub repo — job postings
-    const res = await fetch('https://raw.githubusercontent.com/SimplifyJobs/Summer2026-Internships/main/README.md');
+    const res = await fetch('https://raw.githubusercontent.com/SimplifyJobs/Summer2026-Internships/dev/README.md');
     if (!res.ok) throw new Error(`SimplifyJobs ${res.status}`);
     const text = await res.text();
-    // Parse markdown table
-    const lines = text.split('\n').filter(l => l.startsWith('|') && !l.includes('---') && !l.includes('Company'));
-    return lines.slice(0, limit).map(l => {
-      const cols = l.split('|').map(c => c.trim()).filter(Boolean);
-      return {
-        company: cols[0] || 'Unknown',
-        role: cols[1] || 'Unknown',
-        location: cols[2] || 'Remote',
-        link: cols[3] || '#',
-        source: 'SimplifyJobs',
-      };
-    }).filter(j => j.company !== 'Unknown');
+    return parseSimplifyHtml(text, limit, 'SimplifyJobs');
   } catch (err) {
     console.warn('[JobScraper] SimplifyJobs failed:', err.message);
+    return [];
+  }
+}
+
+async function fetchNewGradPositions(limit = 10) {
+  try {
+    const res = await fetch('https://raw.githubusercontent.com/SimplifyJobs/New-Grad-Positions/dev/README.md');
+    if (!res.ok) throw new Error(`NewGradPositions ${res.status}`);
+    const text = await res.text();
+    return parseSimplifyHtml(text, limit, 'NewGradPositions');
+  } catch (err) {
+    console.warn('[JobScraper] NewGradPositions failed:', err.message);
     return [];
   }
 }
@@ -93,8 +119,9 @@ async function fetchWeWorkRemotely(limit = 10) {
 async function main() {
   console.log('[JobScraper] Fetching job postings...');
 
-  const [simplify, remoteok, wework] = await Promise.all([
+  const [simplify, newgrad, remoteok, wework] = await Promise.all([
     fetchSimplifyJobs(10),
+    fetchNewGradPositions(10),
     fetchRemoteOK(10),
     fetchWeWorkRemotely(10),
   ]);
@@ -126,7 +153,7 @@ async function main() {
     return hasRequired && !hasExcluded;
   }
 
-  const rawJobs = [...simplify, ...remoteok, ...wework];
+  const rawJobs = [...simplify, ...newgrad, ...remoteok, ...wework];
   const filteredJobs = rawJobs.filter(j => isRelevant(j.title, j.company, j.role));
 
   if (filteredJobs.length < rawJobs.length) {
