@@ -13,10 +13,11 @@ import 'dotenv/config';
 import { httpGet, httpPost, httpScrape } from '../lib/http_client.js';
 import { getDb, runQuery } from '../lib/db.js';
 
-const JOB_WEBHOOK = process.env.JOB_WEBHOOK_URL || process.env.DISCORD_WEBHOOK;
+const JOB_WEBHOOK = process.env.JOB_WEBHOOK_URL;
 
 if (!JOB_WEBHOOK) {
   console.error('❌ JOB_WEBHOOK_URL not set in .env');
+  console.error('   Create a separate webhook for jobs: Discord Server Settings → Integrations → Webhooks');
   process.exit(1);
 }
 

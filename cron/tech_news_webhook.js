@@ -13,8 +13,12 @@ import 'dotenv/config';
 import { httpGet, httpScrape, fetchText } from '../lib/http_client.js';
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 
-const TECH_WEBHOOK = process.env.TECH_WEBHOOK_URL || process.env.DISCORD_WEBHOOK;
-if (!TECH_WEBHOOK) { console.error('❌ TECH_WEBHOOK_URL not set'); process.exit(1); }
+const TECH_WEBHOOK = process.env.TECH_WEBHOOK_URL;
+if (!TECH_WEBHOOK) {
+  console.error('❌ TECH_WEBHOOK_URL not set in .env');
+  console.error('   Set it to your dedicated tech-news webhook URL.');
+  process.exit(1);
+}
 
 const TECH_TOPICS = [
   'artificial intelligence', 'machine learning', 'distributed systems',

@@ -11,7 +11,12 @@ import fs from 'fs/promises';
 import path from 'path';
 import { httpGet, httpPost } from '../lib/http_client.js';
 
-const ALGO_WEBHOOK_URL = process.env.ALGO_WEBHOOK_URL || '';
+const ALGO_WEBHOOK_URL = process.env.ALGO_WEBHOOK_URL;
+if (!ALGO_WEBHOOK_URL) {
+  console.error('❌ ALGO_WEBHOOK_URL not set in .env');
+  console.error('   Create a separate webhook for algo: Discord Server Settings → Integrations → Webhooks');
+  process.exit(1);
+}
 const CATCHUP_FILE = path.resolve('./.algo_catchup.json');
 
 function getPdtDate() {
@@ -113,10 +118,6 @@ async function fetchLeetCodeProblem() {
 // ── Discord Webhook ─────────────────────────────────────────────────────────
 
 async function sendWebhook(payload) {
-  if (!ALGO_WEBHOOK_URL) {
-    console.log('[AlgoBot] ALGO_WEBHOOK_URL not set');
-    return false;
-  }
   const res = await fetch(ALGO_WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
