@@ -25,7 +25,7 @@ import { withTimeout, TimeoutError } from './lib/with_timeout.js';
 import { getEmbeddingCacheStats } from './lib/embeddings.js';
 import { getGraphStats, searchEntities, exportGraphForVisualization } from './lib/knowledge_graph.js';
 import { getEvaluationStats, getModelPerformanceReport, getAllABTestResults, detectKnowledgeGaps } from './lib/self_evolution.js';
-import { listVideos, cleanupOldVideos } from './lib/video_cdn.js';
+// video_cdn.js removed — listVideos, cleanupOldVideos not used
 import { getSecurityHeaders, validateApiKey, isIpAllowed, checkBodySize, auditLog, validateBody, sanitizeString } from './lib/security.js';
 import { handleInteraction, registerSlashCommands } from './discord_interactions.js';
 import { handleJob } from './cron/cloud_scheduler_triggers.js';

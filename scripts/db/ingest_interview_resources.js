@@ -5,7 +5,15 @@
  */
 
 import { DatabaseSync } from 'node:sqlite';
-import { chunkText } from '../lib/chunking.js';
+// Inline chunkText (chunking.js removed)
+function chunkText(text, maxLen = 1000, overlap = 100) {
+  if (text.length <= maxLen) return [text];
+  const chunks = [];
+  for (let i = 0; i < text.length; i += maxLen - overlap) {
+    chunks.push(text.slice(i, i + maxLen));
+  }
+  return chunks;
+}
 
 const SOURCES = [
   { repo: 'jwasham/coding-interview-university', path: 'README.md', domain: 'algorithms', difficulty: 'easy', tier: 1, tags: ['arrays', 'hashmap', 'two-pointers'] },

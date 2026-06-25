@@ -62,7 +62,15 @@ async function startWatcher() {
       try {
         const fs = await import('fs/promises');
         const content = await fs.readFile(filePath, 'utf8');
-        const { chunkText } = await import('./lib/chunking.js');
+        // Inline chunkText (chunking.js removed)
+        const chunkText = (text, maxLen = 1000, overlap = 100) => {
+          if (text.length <= maxLen) return [text];
+          const chunks = [];
+          for (let i = 0; i < text.length; i += maxLen - overlap) {
+            chunks.push(text.slice(i, i + maxLen));
+          }
+          return chunks;
+        };
         const { embedText } = await import('./lib/embeddings.js');
         const { upsertDocument } = await import('./lib/vector_store.js');
 
