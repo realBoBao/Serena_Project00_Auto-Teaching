@@ -6,12 +6,33 @@ import { promisify } from 'util';
 import { isProcessed, markProcessed, checkSourceStatus } from './lib/db.js';
 import { addMemory, archiveOldMemories } from './lib/memory_manager.js';
 import { sendDiscordNotification } from './notify_discord.js';
-import { chunkText } from './lib/chunking.js';
+// Inline chunkText (chunking.js removed)
+function chunkText(text, maxChunkSize = 1000, overlap = 100) {
+  if (!text || text.length <= maxChunkSize) return [text || ''];
+  const chunks = [];
+  let start = 0;
+  while (start < text.length) {
+    const end = Math.min(start + maxChunkSize, text.length);
+    chunks.push(text.slice(start, end));
+    start += maxChunkSize - overlap;
+  }
+  return chunks;
+}
 import { embedText, embedTextsBatch } from './lib/embeddings.js';
 import { upsertDocument } from './lib/vector_store.js';
 import { httpGet } from './lib/http_client.js';
-import { retry } from './lib/backoff.js';
-import { hedge } from './lib/request_hedging.js';
+// Inline retry + hedge (backoff.js + request_hedging.js removed)
+async function retry(fn, { retries = 3, baseDelay = 1000 } = {}) {
+  for (let i = 0; i <= retries; i++) {
+    try { return await fn(); } catch (err) {
+      if (i === retries) throw err;
+      await new Promise(r => setTimeout(r, baseDelay * Math.pow(2, i)));
+    }
+  }
+}
+async function hedge(fn, { hedgeDelay = 1500 } = {}) {
+  return fn(); // simplified: no hedging, just call directly
+}
 
 // ── Deduplication helper ──
 // Loại bỏ duplicate sources dựa trên URL (cùng URL từ nhiều sources chỉ giữ 1)
