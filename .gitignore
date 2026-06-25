@@ -12,7 +12,32 @@ package-lock.json
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
 data/
+
+# Sensitive data files
+user_state.json
+transition_matrix.json
+.algo_catchup.json
+.tech_news_catchup.json
+.topic_history.json
+data/.query_dedup.json
+data/.recent_sources.json
+data/.scheduler_last_run.json
+data/.topic_history.json
+data/.topic_webhook_dedup.json
+data/.user_sources.json
+data/analysis.json
+data/catch_up.json
+data/cs_curriculum.json
+data/devops_resources.json
+data/processed.json
+data/toc_*.json
+storage/
+
+# Crawler storage (contains session state)
+storage/key_value_stores/
+storage/request_queues/
 
 # Artifacts
 artifacts/

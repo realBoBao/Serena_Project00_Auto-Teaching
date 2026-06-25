@@ -1,9 +1,0 @@
-{
-	"id": "K7PKRdcECazYwYn",
-	"json": "{\"id\":\"K7PKRdcECazYwYn\",\"url\":\"https://www.indeed.com/jobs?q=software+engineer+remote\",\"loadedUrl\":\"https://www.indeed.com/jobs?q=software+engineer+remote\",\"uniqueKey\":\"https://www.indeed.com/jobs?q=software+engineer+remote\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{\"User-Agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36\",\"Accept-Language\":\"en-US,en;q=0.9\"},\"userData\":{\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-06-24T21:13:38.622Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.indeed.com/jobs?q=software+engineer+remote",
-	"url": "https://www.indeed.com/jobs?q=software+engineer+remote"
-}
