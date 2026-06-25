@@ -575,8 +575,8 @@ if (!IS_CLOUD_RUN) {
     }
   }, { timezone: 'America/Los_Angeles' });
 
-  // ── Tier 3: Job Scraper — 6:00 AM PDT ──
-  const JOB_CRON = '0 6 * * *';
+  // ── Tier 3: Job Scraper — 6:00 AM + 12PM + 6PM PDT ──
+  const JOB_CRON = '0 6,13,19 * * *';
   jobTask = cron.schedule(JOB_CRON, async () => {
     logger.info('[Scheduler] Job scraper triggered');
     try {
@@ -589,6 +589,34 @@ if (!IS_CLOUD_RUN) {
     }
   }, { timezone: 'America/Los_Angeles' });
 
+  // ── Tech News Webhook — 8AM, 11AM, 2PM, 5PM, 8PM PDT ──
+  const TECH_NEWS_CRON = '0 8,11,14,17,20 * * *';
+  const techNewsTask = cron.schedule(TECH_NEWS_CRON, async () => {
+    logger.info('[Scheduler] Tech news triggered');
+    try {
+      const { runTechNews } = await import('./cron/tech_news_webhook.js');
+      const result = await runTechNews();
+      logger.info(`[Scheduler] Tech news: ${result.items} items sent`);
+      await saveLastRun('techNews');
+    } catch (err) {
+      logger.error('[Scheduler] Tech news error:', err?.message || err);
+    }
+  }, { timezone: 'America/Los_Angeles' });
+
+  // ── Algo Webhook — 8:00 AM PDT ──
+  const ALGO_CRON = '0 8 * * *';
+  algoTask = cron.schedule(ALGO_CRON, async () => {
+    logger.info('[Scheduler] Algo webhook triggered');
+    try {
+      const { runAlgoWebhook } = await import('./cron/algo_webhook.js');
+      const result = await runAlgoWebhook();
+      logger.info(`[Scheduler] Algo webhook: ${result.sent ? 'sent' : 'skipped (already sent today)'}`);
+      await saveLastRun('algo');
+    } catch (err) {
+      logger.error('[Scheduler] Algo webhook error:', err?.message || err);
+    }
+  }, { timezone: 'America/Los_Angeles' });
+
   // ── Start all cron jobs ──
   task.start();
   memoryTask.start();
@@ -597,12 +625,9 @@ if (!IS_CLOUD_RUN) {
   graphTask.start();
   suggestionTask.start();
   rssTask.start();
-
-  // Job Scraper, Algo Bot, Algo Answer: Disabled on VPS
-  // Handled by GitHub Actions cron instead
-  // jobTask.start();
-  // algoTask.start();
-  // algoAnswerTask.start();
+  jobTask.start();
+  techNewsTask.start();
+  algoTask.start();
 
   // ── Step 5: Morning Health Check — 8:00 AM PDT ──
   const healthTask = cron.schedule('0 8 * * *', async () => {
