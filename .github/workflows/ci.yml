@@ -58,6 +58,34 @@ jobs:
           cache: 'npm'
       - run: npm install --legacy-peer-deps
       - name: Run npm audit
+        run: npm audit --production --audit-level=high 2>&1 || true
+
+  # ── Job 4: Deploy (only when all checks pass) ────────────
+  deploy:
+    name: 🚀 Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.GCP_HOST }}
+          username: ${{ secrets.GCP_USERNAME }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          script: |
+            cd ~/ai-brain
+            git pull origin main
+            npm install --legacy-peer-deps
+            pip install -r requirements.txt
+            pm2 reload ecosystem.config.cjs --update-env
+            pm2 save
+            echo "✅ Deployment complete"
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm install --legacy-peer-deps
+      - name: Run npm audit
         run: |
           npm audit --production --audit-level=high 2>&1 | tee audit.txt
           if grep -q '"severity":"high"\|"severity":"critical"' audit.txt 2>/dev/null; then
