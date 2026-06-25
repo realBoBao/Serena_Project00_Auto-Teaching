@@ -7,7 +7,7 @@
  */
 
 import 'dotenv/config';
-import { getDb, runQuery, getAll } from './lib/db.js';
+import { getDb, runQuery, getAll } from '../../lib/db.js';
 
 console.log('═'.repeat(60));
 console.log('DEDUP TEST — Kiểm tra SQLite dedup hoạt động');

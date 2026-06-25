@@ -40,7 +40,7 @@ for (const [name, url] of Object.entries(webhooks)) {
 // Test 3: Kiểm tra SQLite dedup
 console.log('\n[3] SQLite Dedup Status...');
 try {
-  const { getDb, getAll } = await import('./lib/db.js');
+  const { getDb, getAll } = await import('../../lib/db.js');
   const db = await getDb();
   
   // Check sent_jobs table
