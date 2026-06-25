@@ -9,7 +9,7 @@ import { sendDiscordNotification } from './notify_discord.js';
 import { chunkText } from './lib/chunking.js';
 import { embedText, embedTextsBatch } from './lib/embeddings.js';
 import { upsertDocument } from './lib/vector_store.js';
-import { fetchWithRetry } from './lib/fetch_retry.js';
+import { httpGet } from './lib/http_client.js';
 import { retry } from './lib/backoff.js';
 import { hedge } from './lib/request_hedging.js';
 
@@ -147,9 +147,8 @@ async function githubSearch(topic, perPage = GITHUB_PER_PAGE, minStars = GITHUB_
       async (signal) => {
         const q = `${topic} stars:>=${minStars}`;
         const url = `${GITHUB_SEARCH_URL}?q=${encodeURIComponent(q)}&sort=stars&order=desc&per_page=${perPage}`;
-        const res = await fetchWithRetry(url, {
+        const res = await httpGet(url, {
           headers: process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {},
-          signal,
         });
         if (!res.ok) throw new Error(`GitHub search ${res.status}`);
         const j = await res.json();
@@ -201,7 +200,7 @@ async function fetchRepoReadmeAndAnalyze(owner, repo, stars){
 async function fetchYouTubeVideoStats(videoIds, apiKey){
   if(!apiKey || !videoIds) return {};
   const params = new URLSearchParams({ part: 'statistics', id: videoIds, key: apiKey });
-  const res = await fetchWithRetry(`https://www.googleapis.com/youtube/v3/videos?${params.toString()}`);
+  const res = await httpGet(`https://www.googleapis.com/youtube/v3/videos?${params.toString()}`);
   if(!res.ok) throw new Error(`YouTube videos stats ${res.status}`);
   const j = await res.json();
   return (j.items || []).reduce((acc, item) => {
@@ -277,7 +276,7 @@ async function youtubeSearchVideos(topic, maxResults = YOUTUBE_MAX_RESULTS, minV
           maxResults: String(Math.min(maxResults * 2, 50)),
         });
         if (apiKey) params.set('key', apiKey);
-        const res = await fetchWithRetry(`${YOUTUBE_SEARCH_URL}?${params.toString()}`, { signal });
+        const res = await httpGet(`${YOUTUBE_SEARCH_URL}?${params.toString()}`);
         if (!res.ok) { console.warn(`[Pipeline] YouTube ${res.status} (no API key?), skipping`); return []; }
         const j = await res.json();
         const videos = (j.items || []).map((item) => ({
@@ -321,7 +320,7 @@ async function redditSearch(topic, maxResults = 5){
     () => hedge(
       async (signal) => {
         const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&sort=relevance&t=all&limit=${maxResults}`;
-        const res = await fetchWithRetry(url, {
+        const res = await httpGet(url, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'application/json',
@@ -354,7 +353,7 @@ async function stackOverflowSearch(topic, maxResults = 5){
     () => hedge(
       async (signal) => {
         const url = `https://api.stackexchange.com/2.3/search/advanced?order=desc&sort=relevance&q=${encodeURIComponent(topic)}&site=stackoverflow&pagesize=${maxResults}&filter=withbody`;
-        const res = await fetchWithRetry(url, { signal });
+        const res = await httpGet(url);
         if (!res.ok) throw new Error(`StackOverflow search ${res.status}`);
         const j = await res.json();
         return (j.items || []).map((item) => ({
