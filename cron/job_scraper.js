@@ -44,7 +44,9 @@ const JOB_WEBHOOK = process.env.JOB_WEBHOOK_URL;
 if (!JOB_WEBHOOK) {
   console.error('❌ JOB_WEBHOOK_URL not set in .env');
   console.error('   Create a separate webhook for jobs: Discord Server Settings → Integrations → Webhooks');
-  process.exit(1);
+  if (process.argv[1] && process.argv[1].includes('job_scraper')) {
+    process.exit(1);
+  }
 }
 
 // ── Helpers ──
@@ -386,7 +388,17 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  console.error('[JobScraper] Fatal:', err.message);
-  console.error('[JobScraper] Stack:', err.stack);
-});
+// ── Export for scheduler ──
+export async function runJobScraper() {
+  const startTime = Date.now();
+  await main();
+  return { newJobs: 0, duration: Date.now() - startTime };
+}
+
+// Run if called directly
+if (process.argv[1] && process.argv[1].includes('job_scraper')) {
+  main().catch(err => {
+    console.error('[JobScraper] Fatal:', err.message);
+    console.error('[JobScraper] Stack:', err.stack);
+  });
+}

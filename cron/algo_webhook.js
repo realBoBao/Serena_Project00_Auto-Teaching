@@ -17,7 +17,9 @@ const ALGO_WEBHOOK_URL = process.env.ALGO_WEBHOOK_URL;
 if (!ALGO_WEBHOOK_URL) {
   console.error('❌ ALGO_WEBHOOK_URL not set in .env');
   console.error('   Create a separate webhook for algo: Discord Server Settings → Integrations → Webhooks');
-  process.exit(1);
+  if (process.argv[1] && process.argv[1].includes('algo_webhook')) {
+    process.exit(1);
+  }
 }
 const CATCHUP_FILE = path.resolve('./.algo_catchup.json');
 
@@ -206,14 +208,20 @@ async function sendDailyProblem() {
   if (ok) await markSent(); // Mark as sent for catch-up
 }
 
+// ── Export for scheduler ──
+export async function runAlgoWebhook() {
+  const result = await sendDailyProblem();
+  return { sent: result };
+}
+
 // ── CLI ─────────────────────────────────────────────────────────────────────
-
-const mode = process.argv[2] || 'daily';
-
-switch (mode) {
-  case 'daily':
-    await sendDailyProblem();
-    break;
-  default:
-    console.log('Usage: node cron/algo_webhook.js daily');
+if (process.argv[1] && process.argv[1].includes('algo_webhook')) {
+  const mode = process.argv[2] || 'daily';
+  switch (mode) {
+    case 'daily':
+      await sendDailyProblem();
+      break;
+    default:
+      console.log('Usage: node cron/algo_webhook.js daily');
+  }
 }

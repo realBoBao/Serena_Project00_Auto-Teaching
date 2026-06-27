@@ -10,7 +10,7 @@
 
 **The Problem:** Learning algorithms and debugging code alone at 2 AM is isolating and exhausting. Existing AI assistants are transactional — they answer and disappear. They don't understand when you're frustrated, when you need a hint instead of an answer, or when you just need someone to sit with you in comfortable silence.
 
-**The Solution:** Serena is different. She's a Robot Girl who:
+**The Solution:** Serena is different. She's a Robot who:
 - **Learns your style** — She adapts to whether you prefer theory-first or example-first explanations
 - **Stays silent when you're focused** — Study mode means she only speaks when you call her name
 - **Remembers everything** — She tracks what you've learned and suggests review at optimal intervals (FSRS)

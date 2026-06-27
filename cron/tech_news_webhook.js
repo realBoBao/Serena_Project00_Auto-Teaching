@@ -20,7 +20,9 @@ const TECH_WEBHOOK = process.env.TECH_WEBHOOK_URL;
 if (!TECH_WEBHOOK) {
   console.error('❌ TECH_WEBHOOK_URL not set in .env');
   console.error('   Set it to your dedicated tech-news webhook URL.');
-  process.exit(1);
+  if (process.argv[1] && process.argv[1].includes('tech_news_webhook')) {
+    process.exit(1);
+  }
 }
 
 const TECH_TOPICS = [
@@ -94,13 +96,13 @@ function pickRandomTopic() {
   return TECH_TOPICS[Math.floor(Math.random() * TECH_TOPICS.length)];
 }
 
-async function main() {
+export async function runTechNews() {
   const topic = process.argv[2] || pickRandomTopic();
 
   await ensureDedupTable();
   if (await isTopicSentToday(topic)) {
     console.log(`[TechNews] Already sent "${topic}" today — skip`);
-    return;
+    return { items: 0, reason: 'topic_sent' };
   }
 
   console.log(`[TechNews] Fetching: "${topic}"`);
@@ -122,7 +124,7 @@ async function main() {
     ...hnTop.map(n => ({ ...n, src: 'HN-Top', score: Math.min(1, n.pts / 300) })),
   ];
 
-  // ── Intra-run URL dedup (same URL from multiple sources) ──
+  // ── Intra-run URL dedup ──
   const seenUrls = new Set();
   all = all.filter(n => {
     if (!n.url || seenUrls.has(n.url)) return false;
@@ -141,14 +143,13 @@ async function main() {
     }
   }
 
-  // Nếu không còn gì mới → skip, không gửi trùng
   if (!all.length) {
     console.log(`[TechNews] No new sources — all ${beforeDedup} items already sent. Skipping.`);
-    return;
+    return { items: 0, reason: 'all_deduped' };
   }
   console.log(`[TechNews] After dedup: ${all.length} new items to send`);
 
-  // ── Quality scoring (soft ranking — keep all, sort by quality) ──
+  // ── Quality scoring ──
   for (const item of all) {
     item.quality = scoreContent({ title: item.title, url: item.url, source: item.src, points: item.pts });
   }
@@ -163,7 +164,6 @@ async function main() {
   const types = {};
   for (const n of all) types[n.src] = (types[n.src] || 0) + 1;
 
-  // Use PDT date for consistency with other embeds
   const pdtDate = new Date().toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' });
   const embed = {
     title: `📰 Tech News: "${topic}" — ${pdtDate}`,
@@ -179,12 +179,19 @@ async function main() {
     const res = await fetch(TECH_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ embeds: [embed] }) });
     if (res.ok) {
       console.log(`[TechNews] ✅ Sent ${all.length} items`);
-      // Record sent topic + URLs vào DB để lần sau không trùng
       await recordSentTopic(topic, all.map(n => n.url));
+      return { items: all.length, topic };
     } else {
       console.error('[TechNews] ❌ Failed:', res.status);
+      return { items: 0, reason: 'webhook_failed' };
     }
-  } catch (err) { console.error('[TechNews] ❌ Error:', err.message); }
+  } catch (err) {
+    console.error('[TechNews] ❌ Error:', err.message);
+    return { items: 0, reason: err.message };
+  }
 }
 
-main().catch(e => { console.error('[TechNews] Fatal:', e.message); process.exit(1); });
+// Run if called directly (not imported)
+if (process.argv[1] && process.argv[1].includes('tech_news_webhook')) {
+  runTechNews().catch(e => { console.error('[TechNews] Fatal:', e.message); process.exit(1); });
+}
