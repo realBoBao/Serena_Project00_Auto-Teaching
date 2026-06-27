@@ -133,19 +133,20 @@ async function main() {
   // ── Inter-run URL dedup via SQLite ──
   const sentRows = await getAll("SELECT url FROM sent_news WHERE sent_at >= datetime('now', '-7 days')");
   const sentUrls = new Set(sentRows.map(r => r.url));
+  const beforeDedup = all.length;
   if (sentUrls.size > 0) {
-    const before = all.length;
     all = all.filter(n => !sentUrls.has(n.url));
-    if (all.length < before) {
-      console.log(`[TechNews] Dedup: ${before} → ${all.length} (removed ${before - all.length} previously sent)`);
+    if (all.length < beforeDedup) {
+      console.log(`[TechNews] Dedup: ${beforeDedup} → ${all.length} (removed ${beforeDedup - all.length} previously sent)`);
     }
   }
 
   // Nếu không còn gì mới → skip, không gửi trùng
   if (!all.length) {
-    console.log('[TechNews] No new sources today — skip (no duplicate send)');
+    console.log(`[TechNews] No new sources — all ${beforeDedup} items already sent. Skipping.`);
     return;
   }
+  console.log(`[TechNews] After dedup: ${all.length} new items to send`);
 
   // ── Quality scoring (soft ranking — keep all, sort by quality) ──
   for (const item of all) {
