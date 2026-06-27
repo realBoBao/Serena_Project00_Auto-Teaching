@@ -13,6 +13,7 @@ import 'dotenv/config';
 import { httpGet, httpScrape, fetchText } from '../lib/http_client.js';
 import { scoreContent, formatQualityBar } from '../lib/content_quality.js';
 import { runQuery, getOne, getAll } from '../lib/db.js';
+import { searchTechDomains } from '../lib/domain_search.js';
 
 const TECH_WEBHOOK = process.env.TECH_WEBHOOK_URL;
 if (!TECH_WEBHOOK) {
@@ -63,13 +64,29 @@ async function fetchHN(query, limit = 10) {
 }
 
 async function fetchReddit(query, limit = 10) {
-  // Reddit JSON API — dùng httpGet với auto-retry
-  const d = await httpGet(`https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=relevance&t=week&limit=${limit}`);
-  if (!d || !d.data?.children) return [];
-  return d.data.children
-    .filter(c => c.data && !c.data.stickied)
-    .map(c => ({ title: c.data.title || 'Untitled', url: `https://reddit.com${c.data.permalink || ''}`, pts: c.data.score || 0 }))
-    .slice(0, limit);
+  // Reddit JSON API — fetch từ nhiều subreddits cùng lúc
+  const subreddits = ['programming', 'webdev', 'machinelearning', 'rust', 'golang', 'typescript', 'devops', 'kubernetes'];
+  const results = [];
+  
+  // Fetch từng subreddit (song song để tránh rate limit)
+  for (const sub of subreddits.slice(0, 4)) { // Giới hạn 4 subreddits để tránh timeout
+    try {
+      const d = await httpGet(`https://www.reddit.com/r/${sub}/search.json?q=${encodeURIComponent(query)}&sort=relevance&t=week&limit=${Math.ceil(limit/4)}`);
+      if (d?.data?.children) {
+        for (const c of d.data.children) {
+          if (c.data && !c.data.stickied) {
+            results.push({
+              title: c.data.title || 'Untitled',
+              url: `https://reddit.com${c.data.permalink || ''}`,
+              pts: c.data.score || 0,
+            });
+          }
+        }
+      }
+    } catch { /* skip this subreddit */ }
+  }
+  
+  return results.slice(0, limit);
 }
 
 async function fetchGitHub(query, limit = 10) {
@@ -108,8 +125,9 @@ async function main() {
 
   console.log(`[TechNews] Fetching: "${topic}"`);
 
-  const [hn, reddit, github, arxiv] = await Promise.all([
+  const [hn, reddit, github, arxiv, domainSearch] = await Promise.all([
     fetchHN(topic, 10), fetchReddit(topic, 10), fetchGitHub(topic, 10), fetchArXiv(topic, 5),
+    searchTechDomains(topic, 10).catch(() => []),
   ]);
 
   let all = [
@@ -117,6 +135,7 @@ async function main() {
     ...reddit.map(n => ({ ...n, src: 'Reddit', score: Math.min(1, n.pts / 200) })),
     ...github.map(n => ({ ...n, src: 'GitHub', score: Math.min(1, n.pts / 1000) })),
     ...arxiv.map(n => ({ ...n, src: 'arXiv', score: 0.75 })),
+    ...domainSearch.map(n => ({ ...n, src: n.src || 'DDG', score: n.score || 0.7 })),
   ];
 
   // ── Intra-run URL dedup (same URL from multiple sources) ──
