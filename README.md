@@ -1,4 +1,4 @@
-# My AI Brain — Serena, AI Companion
+# My AI Brain — Scourena, AI Companion
 
 > Multi-agent AI system that self-learns, self-evolves, and self-secures.
 > **VPS/PM2 Production | Ponytail Optimized**
@@ -176,4 +176,4 @@ SQLite Vector Store (domain-filtered) + BM25 + Knowledge Graph
 
 ## License
 
-MIT License — Serena, AI Companion
+MIT License — Scourena, AI Companion
